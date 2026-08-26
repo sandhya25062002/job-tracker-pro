@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Video,
   X,
 } from 'lucide-react'
 import Navbar         from '@/components/layout/Navbar'
@@ -38,6 +39,20 @@ function formatDate(iso) {
   } catch { return iso }
 }
 
+/** Format ISO datetime → '28 Aug, 2:00 PM' */
+export function formatInterviewDateTime(isoStr) {
+  if (!isoStr) return '—'
+  try {
+    const d = new Date(isoStr)
+    if (isNaN(d.getTime())) return isoStr
+    const dayStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    return `${dayStr}, ${timeStr}`
+  } catch {
+    return isoStr
+  }
+}
+
 /** Safely escape a field for CSV (RFC 4180) */
 function escapeCsvField(val) {
   if (val === null || val === undefined) return '""'
@@ -47,17 +62,19 @@ function escapeCsvField(val) {
 
 /** Convert applications array to CSV string */
 function exportApplicationsToCSV(applications) {
-  const headers = ['Company', 'Role', 'Status', 'Applied Date', 'Follow-up Date', 'Job Link', 'Notes']
+  const headers = ['Company', 'Role', 'Status', 'Applied Date', 'Follow-up Date', 'Interview Date', 'Job Link', 'Notes']
   const headerRow = headers.map(escapeCsvField).join(',')
 
   const rows = applications.map((app) => {
     const statusLabel = STATUS_LABELS[app.status] || app.status || ''
+    const interviewFormatted = app.interview_date ? formatInterviewDateTime(app.interview_date) : ''
     return [
       escapeCsvField(app.company),
       escapeCsvField(app.role),
       escapeCsvField(statusLabel),
       escapeCsvField(app.applied_date),
       escapeCsvField(app.follow_up_date),
+      escapeCsvField(interviewFormatted),
       escapeCsvField(app.job_link),
       escapeCsvField(app.notes),
     ].join(',')
@@ -118,6 +135,53 @@ export function FollowUpBadge({ date }) {
   return (
     <span className="text-xs text-neutral-600 font-medium">
       {formattedDate}
+    </span>
+  )
+}
+
+// ── Interview Date Badge Component ───────────────────────────────────────────
+export function InterviewBadge({ isoString }) {
+  if (!isoString) return <span className="text-neutral-300 text-xs">—</span>
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const d = new Date(isoString)
+  const dDay = new Date(d)
+  dDay.setHours(0, 0, 0, 0)
+
+  const diffTime = dDay.getTime() - today.getTime()
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+
+  if (diffDays === 0) {
+    return (
+      <span
+        title={`Interview scheduled for today at ${timeStr}`}
+        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse shadow-sm"
+      >
+        <Clock size={11} className="shrink-0 text-amber-700" />
+        Today, {timeStr}
+      </span>
+    )
+  }
+
+  if (diffDays > 0 && diffDays <= 7) {
+    const dayName = diffDays === 1 ? 'Tomorrow' : d.toLocaleDateString('en-GB', { weekday: 'short' })
+    return (
+      <span
+        title={`Interview on ${formatInterviewDateTime(isoString)}`}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+      >
+        <Video size={11} className="shrink-0 text-indigo-600" />
+        {dayName}, {timeStr}
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-neutral-600 font-medium">
+      <Video size={11} className="shrink-0 text-neutral-400" />
+      {formatInterviewDateTime(isoString)}
     </span>
   )
 }
@@ -310,7 +374,7 @@ function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-neutral-200 bg-neutral-50">
-            {['Company', 'Role', 'Status', 'Applied', 'Follow-up', 'Link', 'Actions'].map((h) => (
+            {['Company', 'Role', 'Status', 'Applied', 'Follow-up', 'Interview', 'Link', 'Actions'].map((h) => (
               <th
                 key={h}
                 className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"
@@ -341,6 +405,9 @@ function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
               </td>
               <td className="px-4 py-3.5 whitespace-nowrap">
                 <FollowUpBadge date={app.follow_up_date} />
+              </td>
+              <td className="px-4 py-3.5 whitespace-nowrap">
+                <InterviewBadge isoString={app.interview_date} />
               </td>
               <td className="px-4 py-3.5">
                 {app.job_link ? (
@@ -403,6 +470,12 @@ function ApplicationCard({ app, onEdit, onDelete, onChangeStatus }) {
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-neutral-400 font-medium">Follow-up:</span>
               <FollowUpBadge date={app.follow_up_date} />
+            </div>
+          )}
+          {app.interview_date && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-neutral-400 font-medium">Interview:</span>
+              <InterviewBadge isoString={app.interview_date} />
             </div>
           )}
         </div>

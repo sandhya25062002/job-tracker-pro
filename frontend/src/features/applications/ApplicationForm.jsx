@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { Briefcase, Calendar, ExternalLink, FileText, Tag } from 'lucide-react'
+import { Briefcase, Calendar, Clock, ExternalLink, FileText, Tag } from 'lucide-react'
 import Input  from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 
@@ -17,6 +17,23 @@ const STATUSES = [
 /** Format Date object → 'YYYY-MM-DD' for the date input's default value */
 function todayISO() {
   return new Date().toISOString().split('T')[0]
+}
+
+/** Format ISO datetime string → 'YYYY-MM-DDTHH:mm' for datetime-local input */
+function formatForDatetimeInput(isoStr) {
+  if (!isoStr) return ''
+  try {
+    const d = new Date(isoStr)
+    if (isNaN(d.getTime())) return ''
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  } catch {
+    return ''
+  }
 }
 
 /**
@@ -47,6 +64,7 @@ export default function ApplicationForm({
       status:         initialValues?.status         ?? 'applied',
       applied_date:   initialValues?.applied_date   ?? todayISO(),
       follow_up_date: initialValues?.follow_up_date ?? '',
+      interview_date: formatForDatetimeInput(initialValues?.interview_date),
       job_link:       initialValues?.job_link       ?? '',
       notes:          initialValues?.notes          ?? '',
     },
@@ -61,6 +79,7 @@ export default function ApplicationForm({
       status:         initialValues?.status         ?? 'applied',
       applied_date:   initialValues?.applied_date   ?? todayISO(),
       follow_up_date: initialValues?.follow_up_date ?? '',
+      interview_date: formatForDatetimeInput(initialValues?.interview_date),
       job_link:       initialValues?.job_link       ?? '',
       notes:          initialValues?.notes          ?? '',
     })
@@ -70,7 +89,8 @@ export default function ApplicationForm({
     // Strip empty optional fields so we don't send nullish strings
     const payload = {
       ...values,
-      follow_up_date: values.follow_up_date?.trim() || null,
+      follow_up_date: values.follow_up_date?.trim() ? values.follow_up_date.trim() : null,
+      interview_date: values.interview_date ? new Date(values.interview_date).toISOString() : null,
       job_link:       values.job_link?.trim()       || null,
       notes:          values.notes?.trim()          || null,
     }
@@ -153,16 +173,28 @@ export default function ApplicationForm({
           />
         </div>
 
-        {/* Follow-up Date (optional) */}
-        <Input
-          label="Follow-up Date"
-          id="app-follow-up-date"
-          type="date"
-          leftDecorator={<Calendar size={14} />}
-          helperText="Optional — set a date to follow up on this application"
-          error={errors.follow_up_date?.message}
-          {...register('follow_up_date')}
-        />
+        {/* Follow-up Date & Interview Date — side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Follow-up Date"
+            id="app-follow-up-date"
+            type="date"
+            leftDecorator={<Calendar size={14} />}
+            helperText="Optional — set a date to follow up"
+            error={errors.follow_up_date?.message}
+            {...register('follow_up_date')}
+          />
+
+          <Input
+            label="Interview Date & Time"
+            id="app-interview-date"
+            type="datetime-local"
+            leftDecorator={<Clock size={14} />}
+            helperText="Optional — set interview date & time"
+            error={errors.interview_date?.message}
+            {...register('interview_date')}
+          />
+        </div>
 
         {/* Job Link (optional) */}
         <Input

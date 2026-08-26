@@ -88,37 +88,39 @@ export default function Navbar() {
     return (
       <Link
         to={to}
+        title={label}
         className={[
-          'hidden sm:flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-lg transition-all duration-150',
+          'flex items-center gap-1.5 text-xs sm:text-sm px-2 py-1.5 sm:px-2.5 rounded-lg transition-all duration-150',
           active
             ? 'text-primary-700 bg-primary-50 font-medium'
             : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100',
         ].join(' ')}
       >
-        <Icon size={14} />
-        {label}
+        <Icon size={15} />
+        <span className="hidden md:inline">{label}</span>
       </Link>
     )
   }
 
   return (
-    <header className="sticky top-0 z-40 h-14 bg-white/95 backdrop-blur-sm border-b border-neutral-200 flex items-center px-4 sm:px-6 gap-3 shadow-sm">
+    <header className="sticky top-0 z-40 h-14 bg-white/95 backdrop-blur-sm border-b border-neutral-200 flex items-center px-3 sm:px-6 gap-2 sm:gap-3 shadow-sm">
       {/* ── Brand ── */}
       <Link
         to={isAuthenticated ? '/dashboard' : '/'}
-        className="flex items-center gap-2.5 shrink-0 group"
+        className="flex items-center gap-2 sm:gap-2.5 shrink-0 group"
       >
-        <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center transition-transform duration-150 group-hover:scale-105">
+        <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center transition-transform duration-150 group-hover:scale-105 shrink-0">
           <Briefcase className="text-white" size={14} strokeWidth={2.5} />
         </div>
-        <span className="text-sm font-bold text-neutral-900 tracking-tight hidden sm:block">
-          Job Tracker Pro
+        <span className="text-sm font-bold text-neutral-900 tracking-tight select-none">
+          <span className="sm:hidden">Job Tracker</span>
+          <span className="hidden sm:inline">Job Tracker Pro</span>
         </span>
       </Link>
 
       {/* ── Centre nav links ── */}
       {!isLoading && isAuthenticated && (
-        <nav className="flex items-center gap-1 ml-2">
+        <nav className="flex items-center gap-0.5 sm:gap-1 ml-1 sm:ml-2">
           {navLink('/dashboard',    'Dashboard',    LayoutDashboard)}
           {navLink('/applications', 'Applications', ListChecks)}
         </nav>
@@ -128,7 +130,7 @@ export default function Navbar() {
 
       {/* ── Right-side controls ── */}
       {!isLoading && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {isAuthenticated ? (
             /* ── User dropdown ── */
             <div className="relative" ref={dropdownRef}>
@@ -138,7 +140,7 @@ export default function Navbar() {
                 aria-expanded={dropdownOpen}
                 aria-label="Open user menu"
                 className={[
-                  'flex items-center gap-2 px-2.5 py-1.5 rounded-lg',
+                  'flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg',
                   'border transition-all duration-150',
                   dropdownOpen
                     ? 'bg-neutral-100 border-neutral-300'

@@ -9,6 +9,7 @@ import {
   ListChecks,
   MessageSquare,
   TrendingUp,
+  Video,
 } from 'lucide-react'
 import {
   Cell,
@@ -25,7 +26,7 @@ import {
 } from 'recharts'
 import { useAuth }         from '@/context'
 import { useApplications } from '@/hooks/useApplications'
-import { FollowUpBadge }   from '@/pages/ApplicationsListPage'
+import { FollowUpBadge, InterviewBadge } from '@/pages/ApplicationsListPage'
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/Card'
@@ -289,19 +290,34 @@ export default function DashboardPage() {
       .slice(0, 5),
   [applications])
 
-  // Upcoming / Overdue Follow-ups (due within next 7 days or overdue)
+  // Upcoming Follow-ups: exclude rejected, include follow_up_date within next 7 days (or overdue)
   const upcomingFollowUps = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     return applications
       .filter((a) => {
-        if (!a.follow_up_date) return false
+        if (!a.follow_up_date || a.status === 'rejected') return false
         const target = new Date(a.follow_up_date + 'T00:00:00')
         const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
         return diffDays <= 7
       })
       .sort((a, b) => new Date(a.follow_up_date + 'T00:00:00') - new Date(b.follow_up_date + 'T00:00:00'))
+      .slice(0, 5)
+  }, [applications])
+
+  // Upcoming Interviews: exclude rejected, exclude past interviews, within next 7 days
+  const upcomingInterviews = useMemo(() => {
+    const now = new Date()
+    const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+    return applications
+      .filter((a) => {
+        if (!a.interview_date || a.status === 'rejected') return false
+        const target = new Date(a.interview_date)
+        return target >= now && target <= sevenDaysLater
+      })
+      .sort((a, b) => new Date(a.interview_date) - new Date(b.interview_date))
       .slice(0, 5)
   }, [applications])
 
@@ -557,8 +573,62 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* ── Upcoming Follow-ups & Recent Applications ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        {/* ── Upcoming Interviews, Upcoming Follow-ups & Recent Applications ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+
+          {/* Upcoming Interviews */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Video size={15} className="text-indigo-600" />
+                Upcoming Interviews
+              </CardTitle>
+              <Link
+                to="/applications"
+                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+              >
+                View all <ArrowRight size={12} />
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3.5 py-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+                      <div className="space-y-1.5">
+                        <div className="h-4 w-32 bg-neutral-200 rounded" />
+                        <div className="h-3 w-20 bg-neutral-100 rounded" />
+                      </div>
+                      <div className="h-6 w-16 bg-neutral-200 rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              ) : upcomingInterviews.length === 0 ? (
+                <div className="text-center py-10">
+                  <Video size={28} className="text-indigo-400/80 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-neutral-800">No interviews scheduled</p>
+                  <p className="text-xs text-neutral-400 mt-0.5">Keep applying!</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-neutral-100">
+                  {upcomingInterviews.map((app) => (
+                    <li key={app.id} className="flex items-center justify-between py-3 gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-neutral-900 truncate">
+                          {app.company}
+                        </p>
+                        <p className="text-xs text-neutral-500 truncate">{app.role}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge status={app.status} size="sm" dot />
+                        <InterviewBadge isoString={app.interview_date} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Upcoming Follow-ups */}
           <Card>

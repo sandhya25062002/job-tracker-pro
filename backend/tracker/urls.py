@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import JobApplicationViewSet, RegisterView, ProfileView
 from .views import ForgotPasswordView, ResetPasswordView
 from .views import ChangePasswordView
+from .views import DeleteAccountView
 
 router = DefaultRouter()
 router.register(r'applications', JobApplicationViewSet, basename='application')
@@ -16,4 +17,5 @@ urlpatterns = [
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
     path('reset-password/<uid>/<token>/', ResetPasswordView.as_view(), name='reset-password'),
+    path('delete-account/', DeleteAccountView.as_view(), name='delete-account'),
 ] + router.urls

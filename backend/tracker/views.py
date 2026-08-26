@@ -37,6 +37,8 @@ class ProfileView(generics.RetrieveAPIView):
         return self.request.user    
 
 
+# _______ Change password _____________
+
 
 class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -59,7 +61,7 @@ class ChangePasswordView(APIView):
         return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
 
 
-# ── Forgot Password ─────────────────────────────────────────────────────
+# ── Forgot Password ───
 
 class ForgotPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -84,7 +86,7 @@ class ForgotPasswordView(APIView):
         return Response({'message': 'If this email exists, a reset link has been sent'}, status=status.HTTP_200_OK)
 
 
-# ── Reset Password ──────────────────────────────────────────────────────
+# ── Reset Password ───
 
 class ResetPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -108,3 +110,19 @@ class ResetPasswordView(APIView):
         user.set_password(new_password)
         user.save()
         return Response({'message': 'Password reset successful'}, status=status.HTTP_200_OK)    
+
+
+# ── Delete Account ──
+
+class DeleteAccountView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        password = request.data.get('password')
+        user = request.user
+
+        if not user.check_password(password):
+            return Response({'error': 'Password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.delete()
+        return Response({'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)    

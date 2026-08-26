@@ -7,6 +7,7 @@ from .views import ChangePasswordView
 from .views import DeleteAccountView
 from .views import UpdateNameView
 from .views import GenerateFollowUpEmailView
+from .views import TriggerRemindersView
 
 router = DefaultRouter()
 router.register(r'applications', JobApplicationViewSet, basename='application')
@@ -22,4 +23,6 @@ urlpatterns = [
     path('delete-account/', DeleteAccountView.as_view(), name='delete-account'),
     path('profile/update-name/', UpdateNameView.as_view(), name='update-name'),
     path('generate-followup-email/', GenerateFollowUpEmailView.as_view(), name='generate-followup-email'),
+    path('trigger-reminders/', TriggerRemindersView.as_view(), name='trigger-reminders'),
+
 ] + router.urls

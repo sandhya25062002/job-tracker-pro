@@ -12,6 +12,9 @@ from .models import JobApplication
 from .serializers import JobApplicationSerializer , RegisterSerializer , UserProfileSerializer
 import google.generativeai as genai
 from django.conf import settings
+from django.core.management import call_command
+from django.conf import settings
+
 
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
@@ -181,3 +184,17 @@ starting with "Subject:". Do not include placeholder brackets like [Your Name]
             return Response({'email': response.text}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)      
+
+
+# ── Trigger Reminders (for external cron service) ──────────────────────
+
+class TriggerRemindersView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        secret = request.GET.get('secret')
+        if secret != settings.CRON_SECRET:
+            return Response({'error': 'Unauthorized'}, status=403)
+
+        call_command('send_reminders')
+        return Response({'message': 'Reminders triggered successfully'})        

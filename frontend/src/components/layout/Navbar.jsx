@@ -62,6 +62,8 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
 
+  const displayName = user?.first_name || user?.name || user?.username || 'User'
+
   // Close dropdown on outside click
   useEffect(() => {
     if (!dropdownOpen) return
@@ -143,9 +145,9 @@ export default function Navbar() {
                     : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100 hover:border-neutral-300',
                 ].join(' ')}
               >
-                <InitialsAvatar username={user?.username} avatarSrc={avatar} size="xs" />
+                <InitialsAvatar username={displayName} avatarSrc={avatar} size="xs" />
                 <span className="text-sm font-medium text-neutral-700 hidden sm:block max-w-[120px] truncate">
-                  {user?.username}
+                  {displayName}
                 </span>
                 <svg
                   className={`text-neutral-400 transition-transform duration-150 ${dropdownOpen ? 'rotate-180' : ''}`}
@@ -170,8 +172,13 @@ export default function Navbar() {
                   {/* User info header */}
                   <div className="px-3.5 py-2.5 border-b border-neutral-100 mb-1">
                     <p className="text-xs font-semibold text-neutral-900 truncate">
-                      {user?.username}
+                      {displayName}
                     </p>
+                    {user?.username && displayName !== user.username && (
+                      <p className="text-[11px] text-neutral-400 truncate mt-0.5">
+                        @{user.username}
+                      </p>
+                    )}
                     {user?.email && (
                       <p className="text-xs text-neutral-400 truncate mt-0.5">
                         {user.email}

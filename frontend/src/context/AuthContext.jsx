@@ -183,17 +183,20 @@ export function AuthProvider({ children }) {
     toast.success('Signed out successfully')
   }, [])
 
-  // ── updateUser() — patch local user data (email, avatar) ──────────────
+  // ── updateUser() — patch local user data (email, first_name/name, avatar) ────
   // Called by ProfilePage after the user edits their profile.
-  // avatar: base64 string or null. email: updated email string.
-  const updateUser = useCallback(({ email, avatar: newAvatar } = {}) => {
-    if (email !== undefined) {
-      setUser((prev) => {
-        const updated = prev ? { ...prev, email } : { email }
-        userStorage.set(updated)
-        return updated
-      })
-    }
+  const updateUser = useCallback(({ email, first_name, name, avatar: newAvatar } = {}) => {
+    setUser((prev) => {
+      const updatedName = first_name !== undefined ? first_name : name
+      const updated = {
+        ...prev,
+        ...(email !== undefined ? { email } : {}),
+        ...(updatedName !== undefined ? { first_name: updatedName, name: updatedName } : {}),
+      }
+      userStorage.set(updated)
+      return updated
+    })
+
     if (newAvatar !== undefined) {
       if (newAvatar) {
         avatarStorage.set(newAvatar)

@@ -50,6 +50,18 @@ export async function resetPassword({ uid, token, new_password }) {
   return data
 }
 
+/** POST /api/delete-account/ → body: { password } (authenticated) */
+export async function deleteAccount({ password }) {
+  const { data } = await apiClient.post('/delete-account/', { password })
+  return data
+}
+
+/** PATCH /api/profile/update-name/ → body: { name } (authenticated) */
+export async function updateName({ name }) {
+  const { data } = await apiClient.patch('/profile/update-name/', { name })
+  return data // returns updated profile including first_name
+}
+
 /**
  * logout — client-side only for now.
  * If the backend exposes a token-blacklist endpoint in a later stage,
@@ -59,4 +71,6 @@ export async function logout() {
   // Future: await apiClient.post('/logout/', { refresh })
   return true
 }
+
+
 

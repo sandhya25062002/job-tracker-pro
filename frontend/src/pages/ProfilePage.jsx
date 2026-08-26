@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import {
+  AlertTriangle,
   Briefcase,
   Calendar,
   Camera,
@@ -13,11 +14,12 @@ import {
   Mail,
   Pencil,
   Shield,
+  Trash2,
   User,
 } from 'lucide-react'
 import { useAuth } from '@/context'
 import { useApplications } from '@/hooks/useApplications'
-import { changePassword } from '@/features/auth/authApi'
+import { changePassword, deleteAccount, updateName } from '@/features/auth/authApi'
 import { InitialsAvatar } from '@/components/layout/Navbar'
 import Navbar from '@/components/layout/Navbar'
 import Modal from '@/components/ui/Modal'
@@ -45,6 +47,142 @@ function fileToBase64(file) {
     reader.onerror = reject
     reader.readAsDataURL(file)
   })
+}
+
+// ── Delete Account Confirmation Modal ─────────────────────────────────────────
+function DeleteAccountModal({ isOpen, onClose }) {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors },
+    setError,
+    clearErrors,
+  } = useForm({
+    defaultValues: { password: '' },
+    mode: 'onTouched',
+  })
+
+  const passwordValue = watch('password')
+
+  useEffect(() => {
+    if (isOpen) {
+      reset({ password: '' })
+      clearErrors()
+      setShowPassword(false)
+    }
+  }, [isOpen, reset, clearErrors])
+
+  const onDeleteSubmit = async (values) => {
+    setIsDeleting(true)
+    clearErrors('password')
+    clearErrors('root.serverError')
+    try {
+      await deleteAccount({ password: values.password })
+      toast.success('Your account and all data have been deleted.')
+      onClose()
+      logout()
+      navigate('/login', { replace: true })
+    } catch (err) {
+      const message =
+        err?.data?.password?.[0] ??
+        err?.data?.detail ??
+        err?.message ??
+        'Failed to delete account. Please verify your password.'
+
+      setError('password', { message })
+      toast.error(message, { duration: 5000 })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleInputChange = () => {
+    if (errors.password || errors.root?.serverError) {
+      clearErrors(['password', 'root.serverError'])
+    }
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Delete Account"
+      size="sm"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-rose-50 border border-rose-100 mx-auto text-rose-600">
+          <AlertTriangle size={24} />
+        </div>
+
+        <div className="text-center">
+          <h3 className="text-base font-semibold text-neutral-900 mb-1.5">
+            Are you absolutely sure?
+          </h3>
+          <p className="text-xs text-neutral-600 leading-relaxed">
+            This action is <span className="font-semibold text-rose-600">permanent and cannot be undone</span>. All of your tracked job applications, interview history, notes, and profile details will be permanently wiped from the database.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit(onDeleteSubmit)} noValidate className="flex flex-col gap-4 mt-1">
+          <Input
+            label="Enter your password to confirm"
+            id="delete-account-password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            autoFocus
+            placeholder="Your current password"
+            leftDecorator={<Lock size={14} />}
+            rightDecorator={
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            }
+            error={errors.password?.message}
+            required
+            {...register('password', {
+              required: 'Password is required to delete your account',
+              onChange: handleInputChange,
+            })}
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              className="flex-1"
+              onClick={onClose}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="danger"
+              size="md"
+              className="flex-1"
+              loading={isDeleting}
+              disabled={!passwordValue?.trim() || isDeleting}
+            >
+              Delete My Account
+            </Button>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  )
 }
 
 // ── Change Password Sub-form ──────────────────────────────────────────────────
@@ -202,21 +340,24 @@ function ChangePasswordSection() {
 
 // ── Edit Profile Modal ────────────────────────────────────────────────────────
 function EditProfileModal({ isOpen, onClose, user, avatar, onSave }) {
+  const currentName = user?.first_name || user?.name || ''
   const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm({
-    defaultValues: { email: user?.email ?? '' },
+    defaultValues: { name: currentName, email: user?.email ?? '' },
     mode: 'onTouched',
   })
   const [previewAvatar, setPreviewAvatar] = useState(avatar)
   const [newAvatarFile, setNewAvatarFile] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const fileInputRef = useRef(null)
 
   // Reset when modal opens
   useEffect(() => {
     if (isOpen) {
-      reset({ email: user?.email ?? '' })
+      reset({ name: user?.first_name || user?.name || '', email: user?.email ?? '' })
       setPreviewAvatar(avatar)
       setNewAvatarFile(null)
+      setIsDeleteModalOpen(false)
     }
   }, [isOpen, user, avatar, reset])
 
@@ -244,147 +385,201 @@ function EditProfileModal({ isOpen, onClose, user, avatar, onSave }) {
   const onSubmit = handleSubmit(async (values) => {
     setIsSaving(true)
     try {
+      let updatedProfile = null
+      const formattedName = values.name?.trim() ?? ''
+      if (formattedName !== currentName) {
+        updatedProfile = await updateName({ name: formattedName })
+      }
+
       await onSave({
-        email:  values.email || null,
+        name: formattedName,
+        first_name: updatedProfile?.first_name ?? formattedName,
+        email: values.email || null,
         avatar: newAvatarFile !== null ? newAvatarFile : undefined,
       })
+      toast.success('Profile updated!')
       onClose()
     } catch (err) {
-      toast.error(err?.message ?? 'Failed to save profile.')
+      toast.error(err?.data?.name?.[0] ?? err?.data?.detail ?? err?.message ?? 'Failed to save profile.')
     } finally {
       setIsSaving(false)
     }
   })
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Edit Profile"
-      description="Update your account settings or change your password."
-      size="md"
-    >
-      <div className="flex flex-col gap-6">
-        {/* Profile Info Form */}
-        <form onSubmit={onSubmit} noValidate>
-          <div className="flex flex-col gap-5">
-            {/* Avatar picker */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="relative group">
-                <InitialsAvatar
-                  username={user?.username}
-                  avatarSrc={previewAvatar}
-                  size="xl"
-                />
-                <button
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Edit Profile"
+        description="Update your account settings, change your password, or manage your account."
+        size="md"
+      >
+        <div className="flex flex-col gap-6">
+          {/* Profile Info Form */}
+          <form onSubmit={onSubmit} noValidate>
+            <div className="flex flex-col gap-5">
+              {/* Avatar picker */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative group">
+                  <InitialsAvatar
+                    username={user?.first_name || user?.name || user?.username}
+                    avatarSrc={previewAvatar}
+                    size="xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={[
+                      'absolute inset-0 rounded-full flex items-center justify-center',
+                      'bg-black/40 opacity-0 group-hover:opacity-100',
+                      'transition-opacity duration-150 cursor-pointer',
+                    ].join(' ')}
+                    aria-label="Change profile picture"
+                  >
+                    <Camera size={20} className="text-white" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    aria-label="Upload profile picture"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                  >
+                    Change photo
+                  </button>
+                  {previewAvatar && (
+                    <>
+                      <span className="text-neutral-300">·</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        className="text-xs text-rose-500 hover:text-rose-600 font-medium transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <p className="text-xs text-neutral-400 text-center max-w-[200px]">
+                  JPG, PNG or GIF · max 2 MB
+                  {/* TODO: Move avatar to backend storage (Django media / Cloudinary) */}
+                </p>
+              </div>
+
+              {/* Username (read-only) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-neutral-700 flex items-center gap-1.5">
+                  <User size={13} className="text-neutral-400" />
+                  Username
+                  <span className="text-xs text-neutral-400 font-normal ml-auto">(read-only)</span>
+                </label>
+                <div className="h-9 px-3.5 flex items-center rounded-lg bg-neutral-50 border border-neutral-200 text-sm text-neutral-500 select-none">
+                  {user?.username ?? '—'}
+                </div>
+              </div>
+
+              {/* Name (editable) */}
+              <Input
+                label="Full Name"
+                id="profile-name"
+                type="text"
+                placeholder="e.g. Jane Doe"
+                leftDecorator={<User size={14} />}
+                error={errors.name?.message}
+                {...register('name')}
+              />
+
+              {/* Email */}
+              <Input
+                label="Email address"
+                id="profile-email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                leftDecorator={<Mail size={14} />}
+                error={errors.email?.message}
+                {...register('email', {
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: 'Enter a valid email address',
+                  },
+                })}
+              />
+
+              {/* Save Profile Button */}
+              <div className="flex gap-3 pt-1">
+                <Button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={[
-                    'absolute inset-0 rounded-full flex items-center justify-center',
-                    'bg-black/40 opacity-0 group-hover:opacity-100',
-                    'transition-opacity duration-150 cursor-pointer',
-                  ].join(' ')}
-                  aria-label="Change profile picture"
+                  variant="secondary"
+                  size="md"
+                  className="flex-1"
+                  onClick={onClose}
+                  disabled={isSaving}
                 >
-                  <Camera size={20} className="text-white" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  aria-label="Upload profile picture"
-                />
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  className="flex-1"
+                  loading={isSaving}
+                  disabled={isSaving || (!isDirty && newAvatarFile === null)}
+                >
+                  Save profile
+                </Button>
               </div>
+            </div>
+          </form>
 
-              <div className="flex items-center gap-2">
-                <button
+          {/* Change Password Section */}
+          <ChangePasswordSection />
+
+          {/* Danger Zone: Delete Account */}
+          <div className="pt-4 border-t border-neutral-100">
+            <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-rose-700 font-semibold text-sm">
+                    <AlertTriangle size={15} />
+                    <span>Danger Zone</span>
+                  </div>
+                  <p className="text-xs text-rose-600/90 mt-1 leading-relaxed">
+                    Permanently delete your account and all associated applications.
+                  </p>
+                </div>
+                <Button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="shrink-0 self-start sm:self-auto"
                 >
-                  Change photo
-                </button>
-                {previewAvatar && (
-                  <>
-                    <span className="text-neutral-300">·</span>
-                    <button
-                      type="button"
-                      onClick={handleRemoveAvatar}
-                      className="text-xs text-rose-500 hover:text-rose-600 font-medium transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </>
-                )}
+                  Delete account
+                </Button>
               </div>
-
-              <p className="text-xs text-neutral-400 text-center max-w-[200px]">
-                JPG, PNG or GIF · max 2 MB
-                {/* TODO: Move avatar to backend storage (Django media / Cloudinary) */}
-              </p>
-            </div>
-
-            {/* Username (read-only) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-neutral-700 flex items-center gap-1.5">
-                <User size={13} className="text-neutral-400" />
-                Username
-                <span className="text-xs text-neutral-400 font-normal ml-auto">(read-only)</span>
-              </label>
-              <div className="h-9 px-3.5 flex items-center rounded-lg bg-neutral-50 border border-neutral-200 text-sm text-neutral-500 select-none">
-                {user?.username ?? '—'}
-              </div>
-            </div>
-
-            {/* Email */}
-            <Input
-              label="Email address"
-              id="profile-email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              leftDecorator={<Mail size={14} />}
-              error={errors.email?.message}
-              {...register('email', {
-                pattern: {
-                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                  message: 'Enter a valid email address',
-                },
-              })}
-            />
-
-            {/* Save Profile Button */}
-            <div className="flex gap-3 pt-1">
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                className="flex-1"
-                onClick={onClose}
-                disabled={isSaving}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                className="flex-1"
-                loading={isSaving}
-                disabled={isSaving || (!isDirty && newAvatarFile === null)}
-              >
-                Save profile
-              </Button>
             </div>
           </div>
-        </form>
+        </div>
+      </Modal>
 
-        {/* Change Password Section */}
-        <ChangePasswordSection />
-      </div>
-    </Modal>
+      {/* Delete Account Confirmation Dialog */}
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+      />
+    </>
   )
 }
 
@@ -413,12 +608,15 @@ export default function ProfilePage() {
   // Open edit modal automatically if ?edit=true is in URL
   const [editOpen, setEditOpen] = useState(location.search.includes('edit=true'))
 
-  const handleSave = async ({ email, avatar: newAvatar }) => {
+  const displayName = user?.first_name || user?.name || user?.username || 'User'
+
+  const handleSave = async ({ name, first_name, email, avatar: newAvatar }) => {
     updateUser({
+      first_name: first_name ?? name ?? undefined,
+      name: name ?? undefined,
       email: email ?? undefined,
       ...(newAvatar !== undefined ? { avatar: newAvatar || null } : {}),
     })
-    toast.success('Profile updated!')
   }
 
   const totalApps     = applications.length
@@ -448,7 +646,7 @@ export default function ProfilePage() {
             <div className="flex items-end justify-between -mt-10 mb-4">
               <div className="ring-4 ring-white rounded-full">
                 <InitialsAvatar
-                  username={user?.username}
+                  username={displayName}
                   avatarSrc={avatar}
                   size="xl"
                 />
@@ -467,8 +665,13 @@ export default function ProfilePage() {
             {/* User info */}
             <div className="space-y-1">
               <h1 className="text-xl font-bold text-neutral-900">
-                {user?.username ?? '—'}
+                {displayName}
               </h1>
+              {user?.username && displayName !== user.username && (
+                <p className="text-xs font-medium text-neutral-500">
+                  @{user.username}
+                </p>
+              )}
               <div className="flex items-center gap-1.5 text-sm text-neutral-500">
                 <Mail size={13} className="text-neutral-400" />
                 {user?.email ?? (

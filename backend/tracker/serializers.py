@@ -7,7 +7,7 @@ from django.contrib.auth.password_validation import validate_password
 class JobApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplication
-        fields = ['id', 'company', 'role', 'status', 'applied_date', 'job_link', 'notes', 'follow_up_date' 'created_at']
+        fields = ['id', 'company', 'role', 'status', 'applied_date', 'job_link', 'notes', 'follow_up_date', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 

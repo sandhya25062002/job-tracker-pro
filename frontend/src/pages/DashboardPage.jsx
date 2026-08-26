@@ -552,8 +552,16 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Spinner size="md" />
+              <div className="space-y-3.5 py-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+                    <div className="space-y-1.5">
+                      <div className="h-4 w-32 bg-neutral-200 rounded" />
+                      <div className="h-3 w-20 bg-neutral-100 rounded" />
+                    </div>
+                    <div className="h-6 w-16 bg-neutral-200 rounded-lg" />
+                  </div>
+                ))}
               </div>
             ) : recentApps.length === 0 ? (
               <div className="text-center py-10">

@@ -179,6 +179,20 @@ export default function Navbar() {
                     )}
                   </div>
 
+                  {/* Mobile navigation links (visible on mobile only) */}
+                  <div className="sm:hidden border-b border-neutral-100 pb-1 mb-1">
+                    <DropdownItem
+                      icon={<LayoutDashboard size={14} />}
+                      label="Dashboard"
+                      onClick={() => { setDropdownOpen(false); navigate('/dashboard') }}
+                    />
+                    <DropdownItem
+                      icon={<ListChecks size={14} />}
+                      label="Applications"
+                      onClick={() => { setDropdownOpen(false); navigate('/applications') }}
+                    />
+                  </div>
+
                   <DropdownItem
                     icon={<UserCircle size={14} />}
                     label="Profile"

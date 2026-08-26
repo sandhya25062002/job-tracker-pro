@@ -32,6 +32,24 @@ export async function getProfile() {
   return data // { id, username, email }
 }
 
+/** POST /api/change-password/ → body: { old_password, new_password } (authenticated) */
+export async function changePassword({ old_password, new_password }) {
+  const { data } = await apiClient.post('/change-password/', { old_password, new_password })
+  return data
+}
+
+/** POST /api/forgot-password/ → body: { email } */
+export async function forgotPassword({ email }) {
+  const { data } = await apiClient.post('/forgot-password/', { email })
+  return data
+}
+
+/** POST /api/reset-password/<uid>/<token>/ → body: { new_password } */
+export async function resetPassword({ uid, token, new_password }) {
+  const { data } = await apiClient.post(`/reset-password/${uid}/${token}/`, { new_password })
+  return data
+}
+
 /**
  * logout — client-side only for now.
  * If the backend exposes a token-blacklist endpoint in a later stage,
@@ -41,3 +59,4 @@ export async function logout() {
   // Future: await apiClient.post('/logout/', { refresh })
   return true
 }
+

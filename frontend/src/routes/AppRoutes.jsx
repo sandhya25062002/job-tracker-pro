@@ -3,6 +3,8 @@ import { useAuth } from '@/context'
 import ProtectedRoute       from './ProtectedRoute'
 import LoginPage            from '@/pages/LoginPage'
 import RegisterPage         from '@/pages/RegisterPage'
+import ForgotPasswordPage   from '@/pages/ForgotPasswordPage'
+import ResetPasswordPage    from '@/pages/ResetPasswordPage'
 import DashboardPage        from '@/pages/DashboardPage'
 import ApplicationsListPage from '@/pages/ApplicationsListPage'
 import ProfilePage          from '@/pages/ProfilePage'
@@ -10,8 +12,8 @@ import ProfilePage          from '@/pages/ProfilePage'
 /**
  * AppRoutes — React Router v6 route tree
  *
- * Public:    /login, /register
- * Protected: /dashboard, /applications
+ * Public:    /login, /register, /forgot-password, /reset-password/:uid/:token
+ * Protected: /dashboard, /applications, /profile
  */
 export default function AppRoutes() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -24,8 +26,10 @@ export default function AppRoutes() {
   return (
     <Routes>
       {/* ── Public auth routes ─────────────────────────────────── */}
-      <Route path="/login"    element={<AuthGuard><LoginPage /></AuthGuard>} />
-      <Route path="/register" element={<AuthGuard><RegisterPage /></AuthGuard>} />
+      <Route path="/login"                         element={<AuthGuard><LoginPage /></AuthGuard>} />
+      <Route path="/register"                      element={<AuthGuard><RegisterPage /></AuthGuard>} />
+      <Route path="/forgot-password"               element={<AuthGuard><ForgotPasswordPage /></AuthGuard>} />
+      <Route path="/reset-password/:uid/:token"    element={<ResetPasswordPage />} />
 
       {/* ── Protected routes ───────────────────────────────────── */}
       <Route element={<ProtectedRoute />}>

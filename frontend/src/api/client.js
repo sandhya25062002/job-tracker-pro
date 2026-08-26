@@ -62,8 +62,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const url = originalRequest?.url || ''
+    const isAuthEndpoint =
+      url.includes('/login/') ||
+      url.includes('/register/') ||
+      url.includes('/forgot-password/') ||
+      url.includes('/reset-password/')
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Only attempt token refresh and redirect on protected endpoints,
+    // NOT on public auth endpoints where 401 indicates invalid credentials/token
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true
 
       const refresh = tokenStorage.getRefresh()
@@ -83,13 +91,17 @@ apiClient.interceptors.response.use(
         } catch (_refreshError) {
           // Refresh failed — clear tokens and kick user to /login
           tokenStorage.clearTokens()
-          window.location.replace('/login')
+          if (!window.location.pathname.startsWith('/login')) {
+            window.location.replace('/login')
+          }
           return Promise.reject(_refreshError)
         }
       } else {
-        // No refresh token — go to login
+        // No refresh token — go to login if not already on auth page
         tokenStorage.clearTokens()
-        window.location.replace('/login')
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+          window.location.replace('/login')
+        }
       }
     }
 
@@ -97,6 +109,7 @@ apiClient.interceptors.response.use(
     const normalisedError = {
       status:  error.response?.status,
       message: error.response?.data?.detail
+               ?? error.response?.data?.non_field_errors?.[0]
                ?? error.response?.data?.message
                ?? error.message,
       data:    error.response?.data ?? null,

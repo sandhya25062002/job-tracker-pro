@@ -298,42 +298,42 @@ function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
 // ── Mobile Card List ─────────────────────────────────────────────────────────
 function ApplicationCard({ app, onEdit, onDelete, onChangeStatus }) {
   return (
-    <Card className="relative">
+    <Card className="relative hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0">
-          <p className="font-semibold text-neutral-900 truncate">{app.company}</p>
+          <p className="font-semibold text-neutral-900 truncate text-base">{app.company}</p>
           <p className="text-sm text-neutral-500 truncate mt-0.5">{app.role}</p>
         </div>
         <StatusDropdown application={app} onChangeStatus={onChangeStatus} />
       </div>
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
-        <span className="text-xs text-neutral-400">{formatDate(app.applied_date)}</span>
-        <div className="flex items-center gap-2">
+        <span className="text-xs text-neutral-400 font-medium">{formatDate(app.applied_date)}</span>
+        <div className="flex items-center gap-1.5">
           {app.job_link && (
             <a
               href={app.job_link}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary-500 hover:text-primary-700 transition-colors"
-              aria-label="Open job posting"
+              className="p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+              aria-label={`Open job posting for ${app.company}`}
             >
-              <ExternalLink size={14} />
+              <ExternalLink size={15} />
             </a>
           )}
           <button
             onClick={() => onEdit(app)}
-            aria-label="Edit"
-            className="p-1.5 rounded-md text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+            aria-label={`Edit application at ${app.company}`}
+            className="p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-neutral-500 hover:text-primary-600 hover:bg-primary-50 active:bg-primary-100 transition-colors"
           >
-            <Pencil size={13} />
+            <Pencil size={15} />
           </button>
           <button
             onClick={() => onDelete(app)}
-            aria-label="Delete"
-            className="p-1.5 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+            aria-label={`Delete application at ${app.company}`}
+            className="p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-neutral-500 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors"
           >
-            <Trash2 size={13} />
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
@@ -435,8 +435,8 @@ export default function ApplicationsListPage() {
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
           {/* Search */}
           <div className="flex-1 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-              <Search size={14} />
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+              <Search size={15} />
             </span>
             <input
               type="text"
@@ -444,20 +444,21 @@ export default function ApplicationsListPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={[
-                'w-full h-9 pl-9 pr-9 text-sm rounded-lg',
-                'bg-white border border-neutral-200',
+                'w-full h-10 sm:h-9 pl-10 pr-10 text-sm rounded-lg',
+                'bg-white border border-neutral-200 shadow-sm',
                 'placeholder:text-neutral-400 text-neutral-900',
                 'outline-none transition-all duration-150',
                 'focus:border-primary-500 focus:ring-2 focus:ring-primary-100',
               ].join(' ')}
+              aria-label="Search applications by company or role"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
-                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
+                aria-label="Clear search query"
               >
-                <X size={13} />
+                <X size={14} />
               </button>
             )}
           </div>
@@ -467,13 +468,13 @@ export default function ApplicationsListPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className={[
-              'h-9 px-3 pr-8 text-sm rounded-lg min-w-[148px]',
-              'bg-white border border-neutral-200',
+              'h-10 sm:h-9 px-3.5 pr-8 text-sm rounded-lg min-w-[150px]',
+              'bg-white border border-neutral-200 shadow-sm',
               'text-neutral-700 font-medium cursor-pointer',
               'outline-none transition-all duration-150',
               'focus:border-primary-500 focus:ring-2 focus:ring-primary-100',
             ].join(' ')}
-            aria-label="Filter by status"
+            aria-label="Filter by application status"
           >
             <option value="all">All statuses</option>
             {STATUSES.map((s) => (

@@ -32,6 +32,7 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
     setError,
+    clearErrors,
   } = useForm({
     defaultValues: { username: '', password: '', rememberMe: false },
     mode: 'onTouched',
@@ -39,6 +40,7 @@ export default function LoginPage() {
 
   const onSubmit = async (values) => {
     setIsSubmitting(true)
+    clearErrors('root.serverError')
     try {
       await login({ username: values.username, password: values.password })
       toast.success(`Welcome back, ${values.username}!`)
@@ -48,16 +50,20 @@ export default function LoginPage() {
         err?.data?.detail ??
         err?.data?.non_field_errors?.[0] ??
         err?.message ??
-        'Login failed. Please check your credentials.'
+        'Invalid username or password. Please try again.'
 
-      // Show under the form if it looks like a credential error, else toast
-      if (err?.status === 401 || err?.status === 400) {
-        setError('root.serverError', { message })
-      } else {
-        toast.error(message)
-      }
+      // Set persistent in-form error
+      setError('root.serverError', { message })
+      // Also trigger toast for visibility with 5s duration
+      toast.error(message, { id: 'login-error-toast', duration: 5000 })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleInputChange = () => {
+    if (errors.root?.serverError) {
+      clearErrors('root.serverError')
     }
   }
 
@@ -98,18 +104,30 @@ export default function LoginPage() {
             {errors.root?.serverError && (
               <div
                 role="alert"
-                className="mb-5 flex items-start gap-2.5 rounded-lg bg-rose-50 border border-rose-200 px-3.5 py-3"
+                className="mb-5 flex items-start justify-between gap-2.5 rounded-lg bg-rose-50 border border-rose-200 px-3.5 py-3 animate-in fade-in duration-150"
               >
-                <svg
-                  className="mt-0.5 shrink-0 text-rose-500"
-                  width="14" height="14" viewBox="0 0 16 16"
-                  fill="currentColor" aria-hidden="true"
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <svg
+                    className="mt-0.5 shrink-0 text-rose-500"
+                    width="14" height="14" viewBox="0 0 16 16"
+                    fill="currentColor" aria-hidden="true"
+                  >
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm-.75 4a.75.75 0 0 1 1.5 0v3.25a.75.75 0 0 1-1.5 0V5Zm.75 6.5a.875.875 0 1 1 0-1.75.875.875 0 0 1 0 1.75Z" />
+                  </svg>
+                  <p className="text-sm text-rose-700 leading-snug font-medium">
+                    {errors.root.serverError.message}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => clearErrors('root.serverError')}
+                  className="text-rose-400 hover:text-rose-600 p-0.5 rounded transition-colors shrink-0"
+                  aria-label="Dismiss error"
                 >
-                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm-.75 4a.75.75 0 0 1 1.5 0v3.25a.75.75 0 0 1-1.5 0V5Zm.75 6.5a.875.875 0 1 1 0-1.75.875.875 0 0 1 0 1.75Z" />
-                </svg>
-                <p className="text-sm text-rose-700 leading-snug">
-                  {errors.root.serverError.message}
-                </p>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 2l8 8M10 2l-8 8" />
+                  </svg>
+                </button>
               </div>
             )}
 
@@ -129,6 +147,7 @@ export default function LoginPage() {
                   {...register('username', {
                     required: 'Username is required',
                     minLength: { value: 3, message: 'At least 3 characters' },
+                    onChange: handleInputChange,
                   })}
                 />
 
@@ -158,6 +177,7 @@ export default function LoginPage() {
                   {...register('password', {
                     required: 'Password is required',
                     minLength: { value: 6, message: 'At least 6 characters' },
+                    onChange: handleInputChange,
                   })}
                 />
 
@@ -174,12 +194,12 @@ export default function LoginPage() {
                       Remember me
                     </span>
                   </label>
-                  <button
-                    type="button"
+                  <Link
+                    to="/forgot-password"
                     className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
 
                 {/* Submit */}

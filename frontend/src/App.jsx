@@ -33,9 +33,11 @@ export default function App() {
               padding: '10px 14px',
             },
             success: {
+              duration: 3500,
               iconTheme: { primary: '#22c55e', secondary: '#fff' },
             },
             error: {
+              duration: 5000,
               iconTheme: { primary: '#f43f5e', secondary: '#fff' },
             },
           }}

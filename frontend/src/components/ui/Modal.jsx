@@ -101,6 +101,7 @@ export default function Modal({
       <div
         className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm"
         aria-hidden="true"
+        onClick={onClose}
       />
 
       {/* Dialog */}
@@ -139,12 +140,12 @@ export default function Modal({
                 onClick={onClose}
                 aria-label="Close dialog"
                 className={[
-                  'shrink-0 rounded-lg p-1.5 -mt-0.5 -mr-1',
-                  'text-neutral-400 hover:text-neutral-700',
-                  'hover:bg-neutral-100 transition-colors',
+                  'shrink-0 rounded-lg p-2 min-h-[36px] min-w-[36px] flex items-center justify-center -mt-1 -mr-1',
+                  'text-neutral-400 hover:text-neutral-700 active:text-neutral-900',
+                  'hover:bg-neutral-100 active:bg-neutral-200 transition-colors',
                 ].join(' ')}
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             )}
           </div>

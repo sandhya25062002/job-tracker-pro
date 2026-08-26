@@ -6,6 +6,10 @@ import {
   Briefcase,
   Calendar,
   Camera,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
   Mail,
   Pencil,
   Shield,
@@ -13,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context'
 import { useApplications } from '@/hooks/useApplications'
+import { changePassword } from '@/features/auth/authApi'
 import { InitialsAvatar } from '@/components/layout/Navbar'
 import Navbar from '@/components/layout/Navbar'
 import Modal from '@/components/ui/Modal'
@@ -40,6 +45,159 @@ function fileToBase64(file) {
     reader.onerror = reject
     reader.readAsDataURL(file)
   })
+}
+
+// ── Change Password Sub-form ──────────────────────────────────────────────────
+function ChangePasswordSection() {
+  const [showOld, setShowOld] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [isChanging, setIsChanging] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors },
+    setError,
+  } = useForm({
+    defaultValues: { old_password: '', new_password: '', confirm_password: '' },
+    mode: 'onTouched',
+  })
+
+  const newPasswordValue = watch('new_password')
+
+  const onChangePasswordSubmit = async (values) => {
+    setIsChanging(true)
+    try {
+      await changePassword({
+        old_password: values.old_password,
+        new_password: values.new_password,
+      })
+      toast.success('Password changed successfully!')
+      reset()
+    } catch (err) {
+      const message =
+        err?.data?.old_password?.[0] ??
+        err?.data?.new_password?.[0] ??
+        err?.data?.detail ??
+        err?.message ??
+        'Failed to change password. Please check your current password.'
+
+      if (err?.data?.old_password) {
+        setError('old_password', { message: err.data.old_password[0] })
+      }
+      toast.error(message, { duration: 5000 })
+    } finally {
+      setIsChanging(false)
+    }
+  }
+
+  return (
+    <div className="pt-4 border-t border-neutral-100">
+      <div className="flex items-center gap-2 mb-3">
+        <KeyRound size={15} className="text-neutral-500" />
+        <h3 className="text-sm font-semibold text-neutral-900">Change Password</h3>
+      </div>
+
+      <form onSubmit={handleSubmit(onChangePasswordSubmit)} noValidate className="flex flex-col gap-3.5">
+        {/* Old Password */}
+        <Input
+          label="Current password"
+          id="profile-old-password"
+          type={showOld ? 'text' : 'password'}
+          autoComplete="current-password"
+          placeholder="••••••••"
+          leftDecorator={<Lock size={14} />}
+          rightDecorator={
+            <button
+              type="button"
+              onClick={() => setShowOld((v) => !v)}
+              className="text-neutral-400 hover:text-neutral-600 transition-colors"
+              aria-label={showOld ? 'Hide password' : 'Show password'}
+            >
+              {showOld ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          }
+          error={errors.old_password?.message}
+          required
+          {...register('old_password', {
+            required: 'Current password is required',
+          })}
+        />
+
+        {/* New Password */}
+        <Input
+          label="New password"
+          id="profile-new-password"
+          type={showNew ? 'text' : 'password'}
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          leftDecorator={<Lock size={14} />}
+          rightDecorator={
+            <button
+              type="button"
+              onClick={() => setShowNew((v) => !v)}
+              className="text-neutral-400 hover:text-neutral-600 transition-colors"
+              aria-label={showNew ? 'Hide password' : 'Show password'}
+            >
+              {showNew ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          }
+          error={errors.new_password?.message}
+          required
+          {...register('new_password', {
+            required: 'New password is required',
+            minLength: { value: 8, message: 'At least 8 characters required' },
+            validate: (val) =>
+              /[A-Z]/.test(val) || /[0-9]/.test(val) || /[^a-zA-Z0-9]/.test(val)
+                ? true
+                : 'Include a number, symbol, or uppercase letter',
+          })}
+        />
+
+        {/* Confirm New Password */}
+        <Input
+          label="Confirm new password"
+          id="profile-confirm-password"
+          type={showConfirm ? 'text' : 'password'}
+          autoComplete="new-password"
+          placeholder="Re-enter new password"
+          leftDecorator={<Lock size={14} />}
+          rightDecorator={
+            <button
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              className="text-neutral-400 hover:text-neutral-600 transition-colors"
+              aria-label={showConfirm ? 'Hide password' : 'Show password'}
+            >
+              {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          }
+          error={errors.confirm_password?.message}
+          required
+          {...register('confirm_password', {
+            required: 'Please confirm your new password',
+            validate: (val) =>
+              val === newPasswordValue || 'Passwords do not match',
+          })}
+        />
+
+        <div className="flex justify-end pt-1">
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            loading={isChanging}
+            disabled={isChanging}
+          >
+            Update password
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
 }
 
 // ── Edit Profile Modal ────────────────────────────────────────────────────────
@@ -103,123 +261,129 @@ function EditProfileModal({ isOpen, onClose, user, avatar, onSave }) {
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Profile"
-      description="Update your email address or profile picture."
-      size="sm"
+      description="Update your account settings or change your password."
+      size="md"
     >
-      <form onSubmit={onSubmit} noValidate>
-        <div className="flex flex-col gap-5">
-          {/* Avatar picker */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative group">
-              <InitialsAvatar
-                username={user?.username}
-                avatarSrc={previewAvatar}
-                size="xl"
-              />
-              <button
+      <div className="flex flex-col gap-6">
+        {/* Profile Info Form */}
+        <form onSubmit={onSubmit} noValidate>
+          <div className="flex flex-col gap-5">
+            {/* Avatar picker */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative group">
+                <InitialsAvatar
+                  username={user?.username}
+                  avatarSrc={previewAvatar}
+                  size="xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={[
+                    'absolute inset-0 rounded-full flex items-center justify-center',
+                    'bg-black/40 opacity-0 group-hover:opacity-100',
+                    'transition-opacity duration-150 cursor-pointer',
+                  ].join(' ')}
+                  aria-label="Change profile picture"
+                >
+                  <Camera size={20} className="text-white" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  aria-label="Upload profile picture"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                >
+                  Change photo
+                </button>
+                {previewAvatar && (
+                  <>
+                    <span className="text-neutral-300">·</span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="text-xs text-rose-500 hover:text-rose-600 font-medium transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <p className="text-xs text-neutral-400 text-center max-w-[200px]">
+                JPG, PNG or GIF · max 2 MB
+                {/* TODO: Move avatar to backend storage (Django media / Cloudinary) */}
+              </p>
+            </div>
+
+            {/* Username (read-only) */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-neutral-700 flex items-center gap-1.5">
+                <User size={13} className="text-neutral-400" />
+                Username
+                <span className="text-xs text-neutral-400 font-normal ml-auto">(read-only)</span>
+              </label>
+              <div className="h-9 px-3.5 flex items-center rounded-lg bg-neutral-50 border border-neutral-200 text-sm text-neutral-500 select-none">
+                {user?.username ?? '—'}
+              </div>
+            </div>
+
+            {/* Email */}
+            <Input
+              label="Email address"
+              id="profile-email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              leftDecorator={<Mail size={14} />}
+              error={errors.email?.message}
+              {...register('email', {
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Enter a valid email address',
+                },
+              })}
+            />
+
+            {/* Save Profile Button */}
+            <div className="flex gap-3 pt-1">
+              <Button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className={[
-                  'absolute inset-0 rounded-full flex items-center justify-center',
-                  'bg-black/40 opacity-0 group-hover:opacity-100',
-                  'transition-opacity duration-150 cursor-pointer',
-                ].join(' ')}
-                aria-label="Change profile picture"
+                variant="secondary"
+                size="md"
+                className="flex-1"
+                onClick={onClose}
+                disabled={isSaving}
               >
-                <Camera size={20} className="text-white" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-                aria-label="Upload profile picture"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                className="flex-1"
+                loading={isSaving}
+                disabled={isSaving || (!isDirty && newAvatarFile === null)}
               >
-                Change photo
-              </button>
-              {previewAvatar && (
-                <>
-                  <span className="text-neutral-300">·</span>
-                  <button
-                    type="button"
-                    onClick={handleRemoveAvatar}
-                    className="text-xs text-rose-500 hover:text-rose-600 font-medium transition-colors"
-                  >
-                    Remove
-                  </button>
-                </>
-              )}
-            </div>
-
-            <p className="text-xs text-neutral-400 text-center max-w-[200px]">
-              JPG, PNG or GIF · max 2 MB
-              {/* TODO: Move avatar to backend storage (Django media / Cloudinary) */}
-            </p>
-          </div>
-
-          {/* Username (read-only) */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-neutral-700 flex items-center gap-1.5">
-              <User size={13} className="text-neutral-400" />
-              Username
-              <span className="text-xs text-neutral-400 font-normal ml-auto">(read-only)</span>
-            </label>
-            <div className="h-9 px-3.5 flex items-center rounded-lg bg-neutral-50 border border-neutral-200 text-sm text-neutral-500 select-none">
-              {user?.username ?? '—'}
+                Save profile
+              </Button>
             </div>
           </div>
+        </form>
 
-          {/* Email */}
-          <Input
-            label="Email address"
-            id="profile-email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            leftDecorator={<Mail size={14} />}
-            error={errors.email?.message}
-            {...register('email', {
-              pattern: {
-                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: 'Enter a valid email address',
-              },
-            })}
-          />
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-1">
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              className="flex-1"
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              className="flex-1"
-              loading={isSaving}
-              disabled={isSaving || (!isDirty && newAvatarFile === null)}
-            >
-              Save changes
-            </Button>
-          </div>
-        </div>
-      </form>
+        {/* Change Password Section */}
+        <ChangePasswordSection />
+      </div>
     </Modal>
   )
 }

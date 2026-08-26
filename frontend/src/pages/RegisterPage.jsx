@@ -30,6 +30,7 @@ export default function RegisterPage() {
     watch,
     formState: { errors },
     setError,
+    clearErrors,
   } = useForm({
     defaultValues: { username: '', email: '', password: '', confirmPassword: '' },
     mode: 'onTouched',
@@ -39,6 +40,7 @@ export default function RegisterPage() {
 
   const onSubmit = async (values) => {
     setIsSubmitting(true)
+    clearErrors('root.serverError')
     try {
       const user = await registerUser({
         username: values.username,
@@ -68,14 +70,23 @@ export default function RegisterPage() {
           }
         }
         if (!hasFieldError) {
-          const message = data.detail ?? data.message ?? 'Registration failed.'
+          const message = data.detail ?? data.non_field_errors?.[0] ?? data.message ?? 'Registration failed.'
           setError('root.serverError', { message })
+          toast.error(message, { id: 'reg-error-toast', duration: 5000 })
         }
       } else {
-        toast.error(err?.message ?? 'Something went wrong. Please try again.')
+        const message = err?.message ?? 'Something went wrong. Please try again.'
+        setError('root.serverError', { message })
+        toast.error(message, { id: 'reg-error-toast', duration: 5000 })
       }
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleInputChange = () => {
+    if (errors.root?.serverError) {
+      clearErrors('root.serverError')
     }
   }
 
@@ -115,18 +126,30 @@ export default function RegisterPage() {
             {errors.root?.serverError && (
               <div
                 role="alert"
-                className="mb-5 flex items-start gap-2.5 rounded-lg bg-rose-50 border border-rose-200 px-3.5 py-3"
+                className="mb-5 flex items-start justify-between gap-2.5 rounded-lg bg-rose-50 border border-rose-200 px-3.5 py-3 animate-in fade-in duration-150"
               >
-                <svg
-                  className="mt-0.5 shrink-0 text-rose-500"
-                  width="14" height="14" viewBox="0 0 16 16"
-                  fill="currentColor" aria-hidden="true"
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <svg
+                    className="mt-0.5 shrink-0 text-rose-500"
+                    width="14" height="14" viewBox="0 0 16 16"
+                    fill="currentColor" aria-hidden="true"
+                  >
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm-.75 4a.75.75 0 0 1 1.5 0v3.25a.75.75 0 0 1-1.5 0V5Zm.75 6.5a.875.875 0 1 1 0-1.75.875.875 0 0 1 0 1.75Z" />
+                  </svg>
+                  <p className="text-sm text-rose-700 leading-snug font-medium">
+                    {errors.root.serverError.message}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => clearErrors('root.serverError')}
+                  className="text-rose-400 hover:text-rose-600 p-0.5 rounded transition-colors shrink-0"
+                  aria-label="Dismiss error"
                 >
-                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm-.75 4a.75.75 0 0 1 1.5 0v3.25a.75.75 0 0 1-1.5 0V5Zm.75 6.5a.875.875 0 1 1 0-1.75.875.875 0 0 1 0 1.75Z" />
-                </svg>
-                <p className="text-sm text-rose-700 leading-snug">
-                  {errors.root.serverError.message}
-                </p>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 2l8 8M10 2l-8 8" />
+                  </svg>
+                </button>
               </div>
             )}
 
@@ -152,6 +175,7 @@ export default function RegisterPage() {
                       value: /^[a-zA-Z0-9_]+$/,
                       message: 'Only letters, numbers, and underscores',
                     },
+                    onChange: handleInputChange,
                   })}
                 />
 
@@ -171,6 +195,7 @@ export default function RegisterPage() {
                       value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                       message: 'Enter a valid email address',
                     },
+                    onChange: handleInputChange,
                   })}
                 />
 
@@ -201,6 +226,7 @@ export default function RegisterPage() {
                       /[A-Z]/.test(val) || /[0-9]/.test(val) || /[^a-zA-Z0-9]/.test(val)
                         ? true
                         : 'Include a number, symbol, or uppercase letter',
+                    onChange: handleInputChange,
                   })}
                 />
 
@@ -228,6 +254,7 @@ export default function RegisterPage() {
                     required: 'Please confirm your password',
                     validate: (val) =>
                       val === passwordValue || 'Passwords do not match',
+                    onChange: handleInputChange,
                   })}
                 />
 

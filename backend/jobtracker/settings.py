@@ -152,3 +152,4 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')

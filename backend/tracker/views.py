@@ -10,6 +10,8 @@ from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from .models import JobApplication
 from .serializers import JobApplicationSerializer , RegisterSerializer , UserProfileSerializer
+import google.generativeai as genai
+from django.conf import settings
 
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
@@ -142,4 +144,40 @@ class UpdateNameView(APIView):
 
         user.first_name = name
         user.save()
-        return Response(UserProfileSerializer(user).data, status=status.HTTP_200_OK)          
+        return Response(UserProfileSerializer(user).data, status=status.HTTP_200_OK)        
+
+
+# ── AI Follow-up Email Generator ────────────────────────────────────────
+
+class GenerateFollowUpEmailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        application_id = request.data.get('application_id')
+
+        try:
+            application = JobApplication.objects.get(id=application_id, user=request.user)
+        except JobApplication.DoesNotExist:
+            return Response({'error': 'Application not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-3.6-flash')
+
+        prompt = f"""Write a short, professional follow-up email for a job application.
+
+Company: {application.company}
+Role: {application.role}
+Applied on: {application.applied_date}
+Current status: {application.status}
+
+The email should be polite, concise (under 150 words), express continued 
+interest, and politely ask for an update. Include a subject line at the top 
+starting with "Subject:". Do not include placeholder brackets like [Your Name] 
+- just write "Best regards," at the end without a name.
+"""
+
+        try:
+            response = model.generate_content(prompt)
+            return Response({'email': response.text}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)      

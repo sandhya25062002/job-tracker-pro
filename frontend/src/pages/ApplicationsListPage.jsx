@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Briefcase,
   ChevronDown,
+  Clock,
   Download,
   ExternalLink,
   FilePlus2,
@@ -46,7 +47,7 @@ function escapeCsvField(val) {
 
 /** Convert applications array to CSV string */
 function exportApplicationsToCSV(applications) {
-  const headers = ['Company', 'Role', 'Status', 'Applied Date', 'Job Link', 'Notes']
+  const headers = ['Company', 'Role', 'Status', 'Applied Date', 'Follow-up Date', 'Job Link', 'Notes']
   const headerRow = headers.map(escapeCsvField).join(',')
 
   const rows = applications.map((app) => {
@@ -56,6 +57,7 @@ function exportApplicationsToCSV(applications) {
       escapeCsvField(app.role),
       escapeCsvField(statusLabel),
       escapeCsvField(app.applied_date),
+      escapeCsvField(app.follow_up_date),
       escapeCsvField(app.job_link),
       escapeCsvField(app.notes),
     ].join(',')
@@ -65,11 +67,66 @@ function exportApplicationsToCSV(applications) {
   return '\uFEFF' + [headerRow, ...rows].join('\r\n')
 }
 
+// ── Follow-up Date Badge Component ───────────────────────────────────────────
+export function FollowUpBadge({ date }) {
+  if (!date) return <span className="text-neutral-300 text-xs">—</span>
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(date + 'T00:00:00')
+  const diffTime = target.getTime() - today.getTime()
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+
+  const formattedDate = formatDate(date)
+
+  if (diffDays < 0) {
+    return (
+      <span
+        title={`Follow-up date was ${formattedDate}`}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200"
+      >
+        <AlertTriangle size={11} className="shrink-0 text-rose-600" />
+        {diffDays === -1 ? 'Yesterday' : `${Math.abs(diffDays)}d overdue`}
+      </span>
+    )
+  }
+
+  if (diffDays === 0) {
+    return (
+      <span
+        title={`Follow-up scheduled for today (${formattedDate})`}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
+      >
+        <Clock size={11} className="shrink-0 text-rose-600" />
+        Today
+      </span>
+    )
+  }
+
+  if (diffDays <= 7) {
+    return (
+      <span
+        title={`Follow-up scheduled for ${formattedDate}`}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200"
+      >
+        <Clock size={11} className="shrink-0 text-amber-600" />
+        {diffDays === 1 ? 'Tomorrow' : `In ${diffDays} days`}
+      </span>
+    )
+  }
+
+  return (
+    <span className="text-xs text-neutral-600 font-medium">
+      {formattedDate}
+    </span>
+  )
+}
+
 // ── Skeleton loader ──────────────────────────────────────────────────────────
 function SkeletonRow() {
   return (
     <tr className="border-b border-neutral-100 animate-pulse">
-      {[60, 48, 28, 32, 20].map((w, i) => (
+      {[60, 48, 28, 32, 28, 20].map((w, i) => (
         <td key={i} className="px-4 py-3.5">
           <div
             className="h-4 bg-neutral-200 rounded-md"
@@ -253,7 +310,7 @@ function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-neutral-200 bg-neutral-50">
-            {['Company', 'Role', 'Status', 'Applied', 'Link', 'Actions'].map((h) => (
+            {['Company', 'Role', 'Status', 'Applied', 'Follow-up', 'Link', 'Actions'].map((h) => (
               <th
                 key={h}
                 className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"
@@ -281,6 +338,9 @@ function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
               </td>
               <td className="px-4 py-3.5 text-neutral-500 whitespace-nowrap">
                 {formatDate(app.applied_date)}
+              </td>
+              <td className="px-4 py-3.5 whitespace-nowrap">
+                <FollowUpBadge date={app.follow_up_date} />
               </td>
               <td className="px-4 py-3.5">
                 {app.job_link ? (
@@ -337,7 +397,15 @@ function ApplicationCard({ app, onEdit, onDelete, onChangeStatus }) {
       </div>
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
-        <span className="text-xs text-neutral-400 font-medium">{formatDate(app.applied_date)}</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-400 font-medium">Applied: {formatDate(app.applied_date)}</span>
+          {app.follow_up_date && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-neutral-400 font-medium">Follow-up:</span>
+              <FollowUpBadge date={app.follow_up_date} />
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           {app.job_link && (
             <a

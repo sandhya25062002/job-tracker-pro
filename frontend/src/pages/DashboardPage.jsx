@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Briefcase,
+  CalendarCheck,
+  Clock,
   LayoutDashboard,
   ListChecks,
   MessageSquare,
@@ -23,6 +25,7 @@ import {
 } from 'recharts'
 import { useAuth }         from '@/context'
 import { useApplications } from '@/hooks/useApplications'
+import { FollowUpBadge }   from '@/pages/ApplicationsListPage'
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/Card'
@@ -243,6 +246,8 @@ export default function DashboardPage() {
   const { applications, isLoading } = useApplications()
   const navigate   = useNavigate()
 
+  const displayName = user?.first_name || user?.name || user?.username || 'there'
+
   // ── Derived analytics ─────────────────────────────────────────────────────
   const stats = useMemo(() =>
     PIPELINE_STATUSES.map((status) => ({
@@ -284,6 +289,22 @@ export default function DashboardPage() {
       .slice(0, 5),
   [applications])
 
+  // Upcoming / Overdue Follow-ups (due within next 7 days or overdue)
+  const upcomingFollowUps = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    return applications
+      .filter((a) => {
+        if (!a.follow_up_date) return false
+        const target = new Date(a.follow_up_date + 'T00:00:00')
+        const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        return diffDays <= 7
+      })
+      .sort((a, b) => new Date(a.follow_up_date + 'T00:00:00') - new Date(b.follow_up_date + 'T00:00:00'))
+      .slice(0, 5)
+  }, [applications])
+
   const hasData = applications.length > 0
 
   return (
@@ -302,7 +323,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-sm text-neutral-500">
             Welcome back,{' '}
-            <span className="font-semibold text-neutral-700">{user?.username ?? 'there'}</span>.
+            <span className="font-semibold text-neutral-700">{displayName}</span>.
             {' '}Here&apos;s your job search at a glance.
           </p>
         </div>
@@ -476,7 +497,7 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            {/* ── Response rate card (full-width on mobile, right-aligned on lg) ── */}
+            {/* ── Response rate card & Pipeline summary ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               <ResponseRateCard
                 total={responseRate.total}
@@ -536,70 +557,129 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* ── Recent Applications ── */}
-        <Card className="mb-5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <ListChecks size={15} className="text-primary-600" />
-              Recent Applications
-            </CardTitle>
-            <Link
-              to="/applications"
-              className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
-            >
-              View all <ArrowRight size={12} />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3.5 py-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
-                    <div className="space-y-1.5">
-                      <div className="h-4 w-32 bg-neutral-200 rounded" />
-                      <div className="h-3 w-20 bg-neutral-100 rounded" />
+        {/* ── Upcoming Follow-ups & Recent Applications ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+
+          {/* Upcoming Follow-ups */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Clock size={15} className="text-amber-600" />
+                Upcoming Follow-ups
+              </CardTitle>
+              <Link
+                to="/applications"
+                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+              >
+                View all <ArrowRight size={12} />
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3.5 py-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+                      <div className="space-y-1.5">
+                        <div className="h-4 w-32 bg-neutral-200 rounded" />
+                        <div className="h-3 w-20 bg-neutral-100 rounded" />
+                      </div>
+                      <div className="h-6 w-16 bg-neutral-200 rounded-lg" />
                     </div>
-                    <div className="h-6 w-16 bg-neutral-200 rounded-lg" />
-                  </div>
-                ))}
-              </div>
-            ) : recentApps.length === 0 ? (
-              <div className="text-center py-10">
-                <Briefcase size={28} className="text-neutral-300 mx-auto mb-3" />
-                <CardDescription>No applications yet.</CardDescription>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => navigate('/applications')}
-                >
-                  Add your first application
-                </Button>
-              </div>
-            ) : (
-              <ul className="divide-y divide-neutral-100">
-                {recentApps.map((app) => (
-                  <li key={app.id} className="flex items-center justify-between py-3 gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-neutral-900 truncate">
-                        {app.company}
-                      </p>
-                      <p className="text-xs text-neutral-500 truncate">{app.role}</p>
+                  ))}
+                </div>
+              ) : upcomingFollowUps.length === 0 ? (
+                <div className="text-center py-10">
+                  <CalendarCheck size={28} className="text-emerald-500/80 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-neutral-800">No upcoming follow-ups</p>
+                  <p className="text-xs text-neutral-400 mt-0.5">You&apos;re all caught up!</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-neutral-100">
+                  {upcomingFollowUps.map((app) => (
+                    <li key={app.id} className="flex items-center justify-between py-3 gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-neutral-900 truncate">
+                          {app.company}
+                        </p>
+                        <p className="text-xs text-neutral-500 truncate">{app.role}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge status={app.status} size="sm" dot />
+                        <FollowUpBadge date={app.follow_up_date} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Applications */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <ListChecks size={15} className="text-primary-600" />
+                Recent Applications
+              </CardTitle>
+              <Link
+                to="/applications"
+                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
+              >
+                View all <ArrowRight size={12} />
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3.5 py-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+                      <div className="space-y-1.5">
+                        <div className="h-4 w-32 bg-neutral-200 rounded" />
+                        <div className="h-3 w-20 bg-neutral-100 rounded" />
+                      </div>
+                      <div className="h-6 w-16 bg-neutral-200 rounded-lg" />
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-neutral-400 hidden sm:block">
-                        {formatDate(app.applied_date)}
-                      </span>
-                      <StatusBadge status={app.status} size="sm" dot />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              ) : recentApps.length === 0 ? (
+                <div className="text-center py-10">
+                  <Briefcase size={28} className="text-neutral-300 mx-auto mb-3" />
+                  <CardDescription>No applications yet.</CardDescription>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => navigate('/applications')}
+                  >
+                    Add your first application
+                  </Button>
+                </div>
+              ) : (
+                <ul className="divide-y divide-neutral-100">
+                  {recentApps.map((app) => (
+                    <li key={app.id} className="flex items-center justify-between py-3 gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-neutral-900 truncate">
+                          {app.company}
+                        </p>
+                        <p className="text-xs text-neutral-500 truncate">{app.role}</p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-xs text-neutral-400 hidden sm:block">
+                          {formatDate(app.applied_date)}
+                        </span>
+                        <StatusBadge status={app.status} size="sm" dot />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
       </main>
     </div>
   )
 }
+

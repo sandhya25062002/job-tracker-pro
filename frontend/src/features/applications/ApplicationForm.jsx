@@ -42,12 +42,13 @@ export default function ApplicationForm({
     formState: { errors, isDirty },
   } = useForm({
     defaultValues: {
-      company:      initialValues?.company      ?? '',
-      role:         initialValues?.role         ?? '',
-      status:       initialValues?.status       ?? 'applied',
-      applied_date: initialValues?.applied_date ?? todayISO(),
-      job_link:     initialValues?.job_link     ?? '',
-      notes:        initialValues?.notes        ?? '',
+      company:        initialValues?.company        ?? '',
+      role:           initialValues?.role           ?? '',
+      status:         initialValues?.status         ?? 'applied',
+      applied_date:   initialValues?.applied_date   ?? todayISO(),
+      follow_up_date: initialValues?.follow_up_date ?? '',
+      job_link:       initialValues?.job_link       ?? '',
+      notes:          initialValues?.notes          ?? '',
     },
     mode: 'onTouched',
   })
@@ -55,12 +56,13 @@ export default function ApplicationForm({
   // Reset form when switching between create/edit
   useEffect(() => {
     reset({
-      company:      initialValues?.company      ?? '',
-      role:         initialValues?.role         ?? '',
-      status:       initialValues?.status       ?? 'applied',
-      applied_date: initialValues?.applied_date ?? todayISO(),
-      job_link:     initialValues?.job_link     ?? '',
-      notes:        initialValues?.notes        ?? '',
+      company:        initialValues?.company        ?? '',
+      role:           initialValues?.role           ?? '',
+      status:         initialValues?.status         ?? 'applied',
+      applied_date:   initialValues?.applied_date   ?? todayISO(),
+      follow_up_date: initialValues?.follow_up_date ?? '',
+      job_link:       initialValues?.job_link       ?? '',
+      notes:          initialValues?.notes          ?? '',
     })
   }, [initialValues, reset])
 
@@ -68,8 +70,9 @@ export default function ApplicationForm({
     // Strip empty optional fields so we don't send nullish strings
     const payload = {
       ...values,
-      job_link: values.job_link?.trim() || null,
-      notes:    values.notes?.trim()    || null,
+      follow_up_date: values.follow_up_date?.trim() || null,
+      job_link:       values.job_link?.trim()       || null,
+      notes:          values.notes?.trim()          || null,
     }
     onSubmit(payload)
   })
@@ -149,6 +152,17 @@ export default function ApplicationForm({
             })}
           />
         </div>
+
+        {/* Follow-up Date (optional) */}
+        <Input
+          label="Follow-up Date"
+          id="app-follow-up-date"
+          type="date"
+          leftDecorator={<Calendar size={14} />}
+          helperText="Optional — set a date to follow up on this application"
+          error={errors.follow_up_date?.message}
+          {...register('follow_up_date')}
+        />
 
         {/* Job Link (optional) */}
         <Input

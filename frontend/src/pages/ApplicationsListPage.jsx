@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Briefcase,
   ChevronDown,
+  Download,
   ExternalLink,
   FilePlus2,
   Pencil,
@@ -34,6 +35,34 @@ function formatDate(iso) {
       day: 'numeric', month: 'short', year: 'numeric',
     })
   } catch { return iso }
+}
+
+/** Safely escape a field for CSV (RFC 4180) */
+function escapeCsvField(val) {
+  if (val === null || val === undefined) return '""'
+  const str = String(val)
+  return `"${str.replace(/"/g, '""')}"`
+}
+
+/** Convert applications array to CSV string */
+function exportApplicationsToCSV(applications) {
+  const headers = ['Company', 'Role', 'Status', 'Applied Date', 'Job Link', 'Notes']
+  const headerRow = headers.map(escapeCsvField).join(',')
+
+  const rows = applications.map((app) => {
+    const statusLabel = STATUS_LABELS[app.status] || app.status || ''
+    return [
+      escapeCsvField(app.company),
+      escapeCsvField(app.role),
+      escapeCsvField(statusLabel),
+      escapeCsvField(app.applied_date),
+      escapeCsvField(app.job_link),
+      escapeCsvField(app.notes),
+    ].join(',')
+  })
+
+  // Prepend UTF-8 BOM so Excel opens non-ASCII properly
+  return '\uFEFF' + [headerRow, ...rows].join('\r\n')
 }
 
 // ── Skeleton loader ──────────────────────────────────────────────────────────
@@ -395,6 +424,30 @@ export default function ApplicationsListPage() {
     }
   }
 
+  const handleExportCSV = () => {
+    if (!filtered || filtered.length === 0) {
+      toast.error('No applications to export')
+      return
+    }
+
+    const csvContent = exportApplicationsToCSV(filtered)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+
+    const today = new Date().toISOString().split('T')[0]
+    const filename = `job-applications-${today}.csv`
+
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast.success(`Exported ${filtered.length} application${filtered.length !== 1 ? 's' : ''} to CSV!`)
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-neutral-50 flex flex-col">
@@ -420,15 +473,26 @@ export default function ApplicationsListPage() {
               Track every role you&apos;ve applied for.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<Plus size={15} />}
-            onClick={openCreate}
-            id="add-application-btn"
-          >
-            Add application
-          </Button>
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="secondary"
+              size="md"
+              leftIcon={<Download size={15} />}
+              onClick={handleExportCSV}
+              id="export-csv-btn"
+            >
+              Export CSV
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<Plus size={15} />}
+              onClick={openCreate}
+              id="add-application-btn"
+            >
+              Add application
+            </Button>
+          </div>
         </div>
 
         {/* ── Search + Filter bar ── */}

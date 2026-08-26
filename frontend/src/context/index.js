@@ -1,2 +1,4 @@
-﻿// context/index.js — Stage 2: AuthContext, ApplicationsContext
-export {}
+/**
+ * context/index.js — barrel export for all context providers/hooks
+ */
+export { AuthProvider, useAuth, default as AuthContext } from './AuthContext'

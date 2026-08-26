@@ -1,2 +1,4 @@
-﻿// AuthContext — Stage 2: JWT auth state, login/logout actions
-export {}
+/**
+ * features/auth/index.js — barrel export for auth feature
+ */
+export * from './authApi'

@@ -1,2 +1,5 @@
-﻿// routes/index.jsx — Stage 2: React Router v6 route tree
-export {}
+/**
+ * routes/index.jsx — barrel export for routing components
+ */
+export { default as AppRoutes }     from './AppRoutes'
+export { default as ProtectedRoute } from './ProtectedRoute'

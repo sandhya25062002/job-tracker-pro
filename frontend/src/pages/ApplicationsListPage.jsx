@@ -1,0 +1,580 @@
+import { useState } from 'react'
+import toast from 'react-hot-toast'
+import {
+  AlertTriangle,
+  Briefcase,
+  ChevronDown,
+  ExternalLink,
+  FilePlus2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react'
+import Navbar         from '@/components/layout/Navbar'
+import Button         from '@/components/ui/Button'
+import { Card }       from '@/components/ui/Card'
+import Badge, { StatusBadge, STATUS_LABELS } from '@/components/ui/Badge'
+import Modal          from '@/components/ui/Modal'
+import Spinner        from '@/components/ui/Spinner'
+import Input          from '@/components/ui/Input'
+import { useApplications } from '@/hooks/useApplications'
+import ApplicationForm from '@/features/applications/ApplicationForm'
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+const STATUSES = ['applied', 'interview', 'offer', 'rejected']
+
+/** Format 'YYYY-MM-DD' → 'DD Mon YYYY', e.g. '12 Aug 2026' */
+function formatDate(iso) {
+  if (!iso) return '—'
+  try {
+    return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    })
+  } catch { return iso }
+}
+
+// ── Skeleton loader ──────────────────────────────────────────────────────────
+function SkeletonRow() {
+  return (
+    <tr className="border-b border-neutral-100 animate-pulse">
+      {[60, 48, 28, 32, 20].map((w, i) => (
+        <td key={i} className="px-4 py-3.5">
+          <div
+            className="h-4 bg-neutral-200 rounded-md"
+            style={{ width: `${w}%`, maxWidth: '200px' }}
+          />
+        </td>
+      ))}
+      <td className="px-4 py-3.5">
+        <div className="h-6 w-16 bg-neutral-200 rounded-lg" />
+      </td>
+    </tr>
+  )
+}
+
+function SkeletonCard() {
+  return (
+    <Card className="animate-pulse">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="h-4 w-32 bg-neutral-200 rounded mb-2" />
+          <div className="h-3 w-24 bg-neutral-200 rounded" />
+        </div>
+        <div className="h-6 w-20 bg-neutral-200 rounded-lg" />
+      </div>
+      <div className="h-3 w-28 bg-neutral-100 rounded" />
+    </Card>
+  )
+}
+
+// ── Status Dropdown (quick status change) ─────────────────────────────────────
+function StatusDropdown({ application, onChangeStatus }) {
+  const [open, setOpen] = useState(false)
+
+  const handleSelect = async (status) => {
+    setOpen(false)
+    if (status === application.status) return
+    try {
+      await onChangeStatus(application.id, status)
+    } catch { /* error already handled in hook */ }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 group"
+        aria-label="Change application status"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <StatusBadge status={application.status} size="sm" dot />
+        <ChevronDown
+          size={12}
+          className="text-neutral-400 group-hover:text-neutral-600 transition-colors"
+        />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away overlay */}
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+          <ul
+            role="listbox"
+            className={[
+              'absolute top-full left-0 mt-1 z-20',
+              'bg-white border border-neutral-200 rounded-xl shadow-lg',
+              'min-w-[140px] py-1 overflow-hidden',
+            ].join(' ')}
+          >
+            {STATUSES.map((s) => (
+              <li key={s}>
+                <button
+                  role="option"
+                  aria-selected={application.status === s}
+                  onClick={() => handleSelect(s)}
+                  className={[
+                    'w-full flex items-center gap-2 px-3 py-2 text-sm',
+                    'hover:bg-neutral-50 transition-colors text-left',
+                    application.status === s ? 'bg-neutral-50 font-medium' : '',
+                  ].join(' ')}
+                >
+                  <StatusBadge status={s} size="sm" dot />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Delete Confirmation Modal ────────────────────────────────────────────────
+function DeleteConfirmModal({ application, onConfirm, onCancel, isDeleting }) {
+  return (
+    <Modal
+      isOpen={Boolean(application)}
+      onClose={onCancel}
+      title="Delete application"
+      size="sm"
+      footer={
+        <>
+          <Button variant="secondary" size="md" onClick={onCancel} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            size="md"
+            loading={isDeleting}
+            onClick={onConfirm}
+          >
+            Delete
+          </Button>
+        </>
+      }
+    >
+      {application && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-rose-50 mx-auto">
+            <AlertTriangle size={22} className="text-rose-500" />
+          </div>
+          <p className="text-sm text-neutral-700 text-center leading-relaxed">
+            Are you sure you want to delete the application at{' '}
+            <span className="font-semibold text-neutral-900">
+              {application.company}
+            </span>
+            ? This cannot be undone.
+          </p>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────────
+function EmptyState({ hasFilters, onAddClick }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+      <div className="w-14 h-14 rounded-2xl bg-primary-50 border border-primary-100 flex items-center justify-center mb-4">
+        <FilePlus2 size={24} className="text-primary-500" />
+      </div>
+      {hasFilters ? (
+        <>
+          <h3 className="text-base font-semibold text-neutral-900 mb-1">
+            No applications match
+          </h3>
+          <p className="text-sm text-neutral-500 max-w-xs">
+            Try adjusting your search or filters.
+          </p>
+        </>
+      ) : (
+        <>
+          <h3 className="text-base font-semibold text-neutral-900 mb-1">
+            No applications yet
+          </h3>
+          <p className="text-sm text-neutral-500 max-w-xs mb-6">
+            Start tracking your job search by adding your first application.
+          </p>
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<Plus size={15} />}
+            onClick={onAddClick}
+          >
+            Add your first application
+          </Button>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Desktop Table ─────────────────────────────────────────────────────────────
+function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-neutral-200 bg-neutral-50">
+            {['Company', 'Role', 'Status', 'Applied', 'Link', 'Actions'].map((h) => (
+              <th
+                key={h}
+                className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {applications.map((app) => (
+            <tr
+              key={app.id}
+              className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors last:border-0"
+            >
+              <td className="px-4 py-3.5">
+                <span className="font-semibold text-neutral-900">{app.company}</span>
+              </td>
+              <td className="px-4 py-3.5 text-neutral-600">{app.role}</td>
+              <td className="px-4 py-3.5">
+                <StatusDropdown
+                  application={app}
+                  onChangeStatus={onChangeStatus}
+                />
+              </td>
+              <td className="px-4 py-3.5 text-neutral-500 whitespace-nowrap">
+                {formatDate(app.applied_date)}
+              </td>
+              <td className="px-4 py-3.5">
+                {app.job_link ? (
+                  <a
+                    href={app.job_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-primary-600 hover:text-primary-700 transition-colors"
+                    title={app.job_link}
+                  >
+                    <ExternalLink size={13} />
+                    <span className="text-xs">Link</span>
+                  </a>
+                ) : (
+                  <span className="text-neutral-300 text-xs">—</span>
+                )}
+              </td>
+              <td className="px-4 py-3.5">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => onEdit(app)}
+                    aria-label={`Edit application at ${app.company}`}
+                    className="p-1.5 rounded-md text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => onDelete(app)}
+                    aria-label={`Delete application at ${app.company}`}
+                    className="p-1.5 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Mobile Card List ─────────────────────────────────────────────────────────
+function ApplicationCard({ app, onEdit, onDelete, onChangeStatus }) {
+  return (
+    <Card className="relative">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <p className="font-semibold text-neutral-900 truncate">{app.company}</p>
+          <p className="text-sm text-neutral-500 truncate mt-0.5">{app.role}</p>
+        </div>
+        <StatusDropdown application={app} onChangeStatus={onChangeStatus} />
+      </div>
+
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
+        <span className="text-xs text-neutral-400">{formatDate(app.applied_date)}</span>
+        <div className="flex items-center gap-2">
+          {app.job_link && (
+            <a
+              href={app.job_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-500 hover:text-primary-700 transition-colors"
+              aria-label="Open job posting"
+            >
+              <ExternalLink size={14} />
+            </a>
+          )}
+          <button
+            onClick={() => onEdit(app)}
+            aria-label="Edit"
+            className="p-1.5 rounded-md text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            onClick={() => onDelete(app)}
+            aria-label="Delete"
+            className="p-1.5 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
+export default function ApplicationsListPage() {
+  const {
+    filtered,
+    isLoading,
+    error,
+    searchQuery, setSearchQuery,
+    statusFilter, setStatusFilter,
+    create, update, changeStatus, remove,
+  } = useApplications()
+
+  // Modal state
+  const [formOpen,      setFormOpen]      = useState(false)
+  const [editTarget,    setEditTarget]    = useState(null)  // null = create mode
+  const [deleteTarget,  setDeleteTarget]  = useState(null)
+  const [isSubmitting,  setIsSubmitting]  = useState(false)
+  const [isDeleting,    setIsDeleting]    = useState(false)
+
+  const hasFilters = searchQuery.trim() || statusFilter !== 'all'
+
+  // ── Handlers ───────────────────────────────────────────────────────────
+  const openCreate = () => { setEditTarget(null); setFormOpen(true) }
+  const openEdit   = (app) => { setEditTarget(app); setFormOpen(true) }
+  const closeForm  = () => { setFormOpen(false); setEditTarget(null) }
+
+  const handleFormSubmit = async (data) => {
+    setIsSubmitting(true)
+    try {
+      if (editTarget) {
+        await update(editTarget.id, data)
+      } else {
+        await create(data)
+      }
+      closeForm()
+    } catch (err) {
+      toast.error(err?.message ?? 'Something went wrong.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      await remove(deleteTarget.id)
+      setDeleteTarget(null)
+    } catch (err) {
+      toast.error(err?.message ?? 'Delete failed.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-neutral-50 flex flex-col">
+      <Navbar />
+
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── Page header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-7">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Briefcase size={18} className="text-primary-600" />
+              <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+                Applications
+              </h1>
+              {!isLoading && (
+                <Badge variant="neutral" size="sm">
+                  {filtered.length}
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-neutral-500">
+              Track every role you&apos;ve applied for.
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<Plus size={15} />}
+            onClick={openCreate}
+            id="add-application-btn"
+          >
+            Add application
+          </Button>
+        </div>
+
+        {/* ── Search + Filter bar ── */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+          {/* Search */}
+          <div className="flex-1 relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+              <Search size={14} />
+            </span>
+            <input
+              type="text"
+              placeholder="Search by company or role…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={[
+                'w-full h-9 pl-9 pr-9 text-sm rounded-lg',
+                'bg-white border border-neutral-200',
+                'placeholder:text-neutral-400 text-neutral-900',
+                'outline-none transition-all duration-150',
+                'focus:border-primary-500 focus:ring-2 focus:ring-primary-100',
+              ].join(' ')}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                aria-label="Clear search"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={[
+              'h-9 px-3 pr-8 text-sm rounded-lg min-w-[148px]',
+              'bg-white border border-neutral-200',
+              'text-neutral-700 font-medium cursor-pointer',
+              'outline-none transition-all duration-150',
+              'focus:border-primary-500 focus:ring-2 focus:ring-primary-100',
+            ].join(' ')}
+            aria-label="Filter by status"
+          >
+            <option value="all">All statuses</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* ── Content area ── */}
+        {isLoading ? (
+          <>
+            {/* Desktop skeleton */}
+            <div className="hidden md:block overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                    {['Company', 'Role', 'Status', 'Applied', 'Link', 'Actions'].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile skeleton */}
+            <div className="grid md:hidden gap-3">
+              {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          </>
+        ) : error ? (
+          <Card className="py-12 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <AlertTriangle size={32} className="text-rose-400" />
+              <p className="text-sm font-medium text-neutral-700">{error}</p>
+              <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+                Retry
+              </Button>
+            </div>
+          </Card>
+        ) : filtered.length === 0 ? (
+          <EmptyState hasFilters={hasFilters} onAddClick={openCreate} />
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <ApplicationsTable
+                applications={filtered}
+                onEdit={openEdit}
+                onDelete={setDeleteTarget}
+                onChangeStatus={changeStatus}
+              />
+            </div>
+            {/* Mobile cards */}
+            <div className="grid md:hidden gap-3">
+              {filtered.map((app) => (
+                <ApplicationCard
+                  key={app.id}
+                  app={app}
+                  onEdit={openEdit}
+                  onDelete={setDeleteTarget}
+                  onChangeStatus={changeStatus}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── Result count ── */}
+        {!isLoading && !error && filtered.length > 0 && (
+          <p className="mt-4 text-xs text-neutral-400 text-right">
+            Showing {filtered.length} application{filtered.length !== 1 ? 's' : ''}
+            {hasFilters ? ' (filtered)' : ''}
+          </p>
+        )}
+      </main>
+
+      {/* ── Add / Edit Modal ── */}
+      <Modal
+        isOpen={formOpen}
+        onClose={closeForm}
+        title={editTarget ? `Edit — ${editTarget.company}` : 'Add Application'}
+        description={editTarget ? 'Update the details for this application.' : 'Fill in the details to track a new application.'}
+        size="lg"
+      >
+        <ApplicationForm
+          initialValues={editTarget}
+          onSubmit={handleFormSubmit}
+          onCancel={closeForm}
+          isSubmitting={isSubmitting}
+        />
+      </Modal>
+
+      {/* ── Delete Confirmation Modal ── */}
+      <DeleteConfirmModal
+        application={deleteTarget}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+        isDeleting={isDeleting}
+      />
+    </div>
+  )
+}

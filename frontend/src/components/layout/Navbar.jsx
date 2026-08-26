@@ -1,21 +1,40 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { Briefcase, LayoutDashboard, LogIn, LogOut, UserPlus } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Briefcase, LayoutDashboard, ListChecks, LogIn, LogOut, UserPlus } from 'lucide-react'
 import { useAuth } from '@/context'
 import Button from '@/components/ui/Button'
 
 /**
  * Navbar — top navigation bar
  *
- * Unauthenticated: Login + Register links
- * Authenticated:   username display + Logout button
+ * Unauthenticated: Login + Register CTAs
+ * Authenticated:   Dashboard + Applications nav links, user chip, logout
  */
 export default function Navbar() {
   const { isAuthenticated, isLoading, user, logout } = useAuth()
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const location  = useLocation()
 
   const handleLogout = () => {
     logout()
     navigate('/login', { replace: true })
+  }
+
+  const navLink = (to, label, Icon) => {
+    const active = location.pathname === to
+    return (
+      <Link
+        to={to}
+        className={[
+          'hidden sm:flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md transition-colors',
+          active
+            ? 'text-primary-700 bg-primary-50 font-medium'
+            : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100',
+        ].join(' ')}
+      >
+        <Icon size={14} />
+        {label}
+      </Link>
+    )
   }
 
   return (
@@ -28,29 +47,28 @@ export default function Navbar() {
         <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center transition-transform group-hover:scale-105">
           <Briefcase className="text-white" size={14} strokeWidth={2.5} />
         </div>
-        <span className="text-sm font-bold text-neutral-900 tracking-tight">
+        <span className="text-sm font-bold text-neutral-900 tracking-tight hidden xs:block">
           Job Tracker Pro
         </span>
       </Link>
 
+      {/* Centre nav links (authenticated) */}
+      {!isLoading && isAuthenticated && (
+        <nav className="flex items-center gap-1 ml-2">
+          {navLink('/dashboard',    'Dashboard',    LayoutDashboard)}
+          {navLink('/applications', 'Applications', ListChecks)}
+        </nav>
+      )}
+
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right-side nav */}
+      {/* Right-side controls */}
       {!isLoading && (
-        <nav className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {isAuthenticated ? (
-            /* ── Authenticated ── */
             <>
-              <Link
-                to="/dashboard"
-                className="hidden sm:flex items-center gap-1.5 text-sm text-neutral-600 hover:text-neutral-900 transition-colors px-2 py-1 rounded-md hover:bg-neutral-100"
-              >
-                <LayoutDashboard size={14} />
-                Dashboard
-              </Link>
-
-              {/* User chip */}
+              {/* User avatar chip */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-100 border border-neutral-200">
                 <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center shrink-0">
                   <span className="text-white text-xs font-bold leading-none">
@@ -74,7 +92,6 @@ export default function Navbar() {
               </Button>
             </>
           ) : (
-            /* ── Unauthenticated ── */
             <>
               <Button
                 variant="ghost"
@@ -96,7 +113,7 @@ export default function Navbar() {
               </Button>
             </>
           )}
-        </nav>
+        </div>
       )}
     </header>
   )

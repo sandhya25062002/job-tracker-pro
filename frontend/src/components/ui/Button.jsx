@@ -84,6 +84,9 @@ const Button = forwardRef(function Button(
         'inline-flex items-center justify-center',
         'font-sans select-none whitespace-nowrap',
         'transition-all duration-150 ease-in-out',
+        // Ensure any accidentally-nested <a> (e.g. React Router Link) inherits
+        // the button's text color rather than the global link style
+        '[&_a]:text-inherit [&_a]:no-underline',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
         // Variant
         variantStyles[variant] ?? variantStyles.primary,

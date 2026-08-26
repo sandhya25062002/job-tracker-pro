@@ -1,2 +1,5 @@
-﻿// ApplicationsContext — Stage 2: CRUD for job applications
-export {}
+/**
+ * features/applications/index.js — barrel export for the applications feature
+ */
+export * from './applicationsApi'
+export { default as ApplicationForm } from './ApplicationForm'

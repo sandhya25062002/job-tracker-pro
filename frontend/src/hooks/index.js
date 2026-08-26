@@ -1,6 +1,5 @@
 /**
- * hooks/index.js
- * Re-exports context hooks for convenient single-import access.
- * Stage 3 will add: useApplications, useDebounce, useLocalStorage, etc.
+ * hooks/index.js — barrel export for all hooks
  */
-export { useAuth } from '@/context'
+export { useAuth }         from '@/context'
+export { useApplications } from './useApplications'

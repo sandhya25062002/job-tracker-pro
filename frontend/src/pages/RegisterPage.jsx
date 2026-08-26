@@ -109,8 +109,13 @@ export default function RegisterPage() {
 
           {/* Logo + heading */}
           <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary-600 mb-4 shadow-lg">
-              <Briefcase className="text-white" size={22} strokeWidth={2} />
+            <div className="inline-flex items-center justify-center gap-2.5 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg shrink-0">
+                <Briefcase className="text-white" size={18} strokeWidth={2.5} />
+              </div>
+              <span className="text-lg font-bold text-neutral-900 tracking-tight select-none">
+                Job Tracker Pro
+              </span>
             </div>
             <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
               Create your account

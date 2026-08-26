@@ -8,13 +8,13 @@ import ResetPasswordPage    from '@/pages/ResetPasswordPage'
 import DashboardPage        from '@/pages/DashboardPage'
 import ApplicationsListPage from '@/pages/ApplicationsListPage'
 import ProfilePage          from '@/pages/ProfilePage'
-import LandingPage          from '@/pages/LandingPage'
 
 /**
  * AppRoutes — React Router v6 route tree
  *
- * Public:    /, /login, /register, /forgot-password, /reset-password/:uid/:token
+ * Public:    /login, /register, /forgot-password, /reset-password/:uid/:token
  * Protected: /dashboard, /applications, /profile
+ * Root "/" redirects to /login (or /dashboard if authenticated)
  */
 export default function AppRoutes() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -39,8 +39,8 @@ export default function AppRoutes() {
         <Route path="/profile"      element={<ProfilePage />} />
       </Route>
 
-      {/* ── Redirects & Landing Page ────────────────────────────── */}
-      <Route path="/"  element={<LandingPage />} />
+      {/* ── Redirects ───────────────────────────────────────────── */}
+      <Route path="/"  element={<Navigate to="/login" replace />} />
       <Route path="*"  element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )

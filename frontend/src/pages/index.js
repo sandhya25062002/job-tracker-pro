@@ -8,6 +8,3 @@ export { default as ResetPasswordPage }    from './ResetPasswordPage'
 export { default as DashboardPage }        from './DashboardPage'
 export { default as ApplicationsListPage } from './ApplicationsListPage'
 export { default as ProfilePage }          from './ProfilePage'
-export { default as LandingPage }          from './LandingPage'
-
-

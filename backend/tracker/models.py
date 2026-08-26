@@ -20,6 +20,7 @@ class JobApplication(models.Model):
     applied_date = models.DateField()
     job_link = models.URLField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    follow_up_date = models.DateField(blank=True, null=True) 
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

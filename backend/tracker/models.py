@@ -21,6 +21,7 @@ class JobApplication(models.Model):
     job_link = models.URLField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     follow_up_date = models.DateField(blank=True, null=True) 
+    interview_date = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

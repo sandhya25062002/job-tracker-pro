@@ -125,4 +125,21 @@ class DeleteAccountView(APIView):
             return Response({'error': 'Password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
 
         user.delete()
-        return Response({'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)    
+        return Response({'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)  
+
+
+# ── Update Name ─────────────────────────────────────────────────────────
+
+class UpdateNameView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        user = request.user
+        name = request.data.get('name', '').strip()
+
+        if not name:
+            return Response({'error': 'Name cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.first_name = name
+        user.save()
+        return Response(UserProfileSerializer(user).data, status=status.HTTP_200_OK)          

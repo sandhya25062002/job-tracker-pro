@@ -56,3 +56,14 @@ export async function updateApplication(id, payload) {
 export async function deleteApplication(id) {
   await apiClient.delete(`/applications/${id}/`)
 }
+
+/**
+ * POST /api/generate-followup-email/
+ * @param {string|number} applicationId
+ * @returns {Promise<{ email: string }>}
+ */
+export async function generateFollowupEmail(applicationId) {
+  const { data } = await apiClient.post('/generate-followup-email/', { application_id: applicationId })
+  return data
+}
+

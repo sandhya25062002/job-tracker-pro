@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   Video,
   X,
@@ -24,6 +25,7 @@ import Spinner        from '@/components/ui/Spinner'
 import Input          from '@/components/ui/Input'
 import { useApplications } from '@/hooks/useApplications'
 import ApplicationForm from '@/features/applications/ApplicationForm'
+import { generateFollowupEmail } from '@/features/applications/applicationsApi'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -368,7 +370,7 @@ function EmptyState({ hasFilters, onAddClick }) {
 }
 
 // ── Desktop Table ─────────────────────────────────────────────────────────────
-function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
+function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus, onGenerateEmail, generatingId }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
       <table className="w-full text-sm">
@@ -428,6 +430,26 @@ function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
               <td className="px-4 py-3.5">
                 <div className="flex items-center gap-1">
                   <button
+                    onClick={() => onGenerateEmail(app)}
+                    disabled={generatingId !== null || app.status === 'rejected'}
+                    title={app.status === 'rejected' ? 'Not available for rejected applications' : 'Generate follow-up email'}
+                    aria-label={app.status === 'rejected' ? 'Not available for rejected applications' : `Generate follow-up email for ${app.company}`}
+                    className={[
+                      'p-1.5 rounded-md transition-colors',
+                      app.status === 'rejected'
+                        ? 'text-neutral-300 cursor-not-allowed bg-transparent'
+                        : generatingId === app.id
+                          ? 'text-primary-600 bg-primary-50 animate-pulse'
+                          : 'text-neutral-400 hover:text-primary-600 hover:bg-primary-50'
+                    ].join(' ')}
+                  >
+                    {generatingId === app.id ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <Sparkles size={13} />
+                    )}
+                  </button>
+                  <button
                     onClick={() => onEdit(app)}
                     aria-label={`Edit application at ${app.company}`}
                     className="p-1.5 rounded-md text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
@@ -452,7 +474,7 @@ function ApplicationsTable({ applications, onEdit, onDelete, onChangeStatus }) {
 }
 
 // ── Mobile Card List ─────────────────────────────────────────────────────────
-function ApplicationCard({ app, onEdit, onDelete, onChangeStatus }) {
+function ApplicationCard({ app, onEdit, onDelete, onChangeStatus, onGenerateEmail, generatingId }) {
   return (
     <Card className="relative hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -492,6 +514,26 @@ function ApplicationCard({ app, onEdit, onDelete, onChangeStatus }) {
             </a>
           )}
           <button
+            onClick={() => onGenerateEmail(app)}
+            disabled={generatingId !== null || app.status === 'rejected'}
+            title={app.status === 'rejected' ? 'Not available for rejected applications' : 'Generate follow-up email'}
+            aria-label={app.status === 'rejected' ? 'Not available for rejected applications' : `Generate follow-up email for ${app.company}`}
+            className={[
+              'p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg transition-colors',
+              app.status === 'rejected'
+                ? 'text-neutral-300 cursor-not-allowed bg-transparent'
+                : generatingId === app.id
+                  ? 'text-primary-600 bg-primary-50 animate-pulse'
+                  : 'text-neutral-500 hover:text-primary-600 hover:bg-primary-50 active:bg-primary-100'
+            ].join(' ')}
+          >
+            {generatingId === app.id ? (
+              <Spinner size="sm" />
+            ) : (
+              <Sparkles size={15} />
+            )}
+          </button>
+          <button
             onClick={() => onEdit(app)}
             aria-label={`Edit application at ${app.company}`}
             className="p-2 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-neutral-500 hover:text-primary-600 hover:bg-primary-50 active:bg-primary-100 transition-colors"
@@ -528,6 +570,11 @@ export default function ApplicationsListPage() {
   const [deleteTarget,  setDeleteTarget]  = useState(null)
   const [isSubmitting,  setIsSubmitting]  = useState(false)
   const [isDeleting,    setIsDeleting]    = useState(false)
+
+  // AI follow-up email state
+  const [generatingId,          setGeneratingId]          = useState(null)
+  const [generatedEmail,         setGeneratedEmail]         = useState(null)
+  const [generatedEmailCompany,  setGeneratedEmailCompany]  = useState('')
 
   const hasFilters = searchQuery.trim() || statusFilter !== 'all'
 
@@ -587,6 +634,29 @@ export default function ApplicationsListPage() {
     URL.revokeObjectURL(url)
 
     toast.success(`Exported ${filtered.length} application${filtered.length !== 1 ? 's' : ''} to CSV!`)
+  }
+
+  const handleGenerateEmail = async (app) => {
+    if (app.status === 'rejected') {
+      toast.error('Cannot generate follow-up email for a rejected application.')
+      return
+    }
+    setGeneratingId(app.id)
+    try {
+      const data = await generateFollowupEmail(app.id)
+      setGeneratedEmail(data.email)
+      setGeneratedEmailCompany(app.company)
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err?.message || "Couldn't generate email, please try again")
+    } finally {
+      setGeneratingId(null)
+    }
+  }
+
+  const handleCopyEmail = () => {
+    if (!generatedEmail) return
+    navigator.clipboard.writeText(generatedEmail)
+    toast.success('Copied to clipboard!')
   }
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -732,6 +802,8 @@ export default function ApplicationsListPage() {
                 onEdit={openEdit}
                 onDelete={setDeleteTarget}
                 onChangeStatus={changeStatus}
+                onGenerateEmail={handleGenerateEmail}
+                generatingId={generatingId}
               />
             </div>
             {/* Mobile cards */}
@@ -743,6 +815,8 @@ export default function ApplicationsListPage() {
                   onEdit={openEdit}
                   onDelete={setDeleteTarget}
                   onChangeStatus={changeStatus}
+                  onGenerateEmail={handleGenerateEmail}
+                  generatingId={generatingId}
                 />
               ))}
             </div>
@@ -781,6 +855,43 @@ export default function ApplicationsListPage() {
         onCancel={() => setDeleteTarget(null)}
         isDeleting={isDeleting}
       />
+
+      {/* ── Generated Email Modal ── */}
+      <Modal
+        isOpen={Boolean(generatedEmail)}
+        onClose={() => setGeneratedEmail(null)}
+        title={`Follow-up Email — ${generatedEmailCompany}`}
+        description="Here is your generated follow-up email. Copy it to your clipboard to send."
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setGeneratedEmail(null)}
+            >
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleCopyEmail}
+            >
+              Copy to Clipboard
+            </Button>
+          </>
+        }
+      >
+        {generatedEmail && (
+          <div className="flex flex-col gap-4">
+            <div className="relative">
+              <pre className="whitespace-pre-wrap font-sans text-neutral-800 text-sm bg-neutral-50 p-4 rounded-xl border border-neutral-200 select-all min-h-[160px] leading-relaxed max-h-[360px] overflow-y-auto">
+                {generatedEmail}
+              </pre>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -1,20 +1,82 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Briefcase, LayoutDashboard, ListChecks, LogIn, LogOut, UserPlus } from 'lucide-react'
+import { Briefcase, LayoutDashboard, ListChecks, LogIn, LogOut, UserCircle, UserCog, UserPlus } from 'lucide-react'
 import { useAuth } from '@/context'
 import Button from '@/components/ui/Button'
 
 /**
+ * InitialsAvatar — renders a coloured circle with the user's initials.
+ * Falls back to 'U' if username is undefined.
+ */
+export function InitialsAvatar({ username, avatarSrc, size = 'sm' }) {
+  const initials = (username ?? 'U')
+    .split(/[\s_-]+/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  const sizeCls = {
+    xs:  'w-6 h-6 text-xs',
+    sm:  'w-7 h-7 text-xs',
+    md:  'w-9 h-9 text-sm',
+    lg:  'w-12 h-12 text-base',
+    xl:  'w-20 h-20 text-2xl',
+  }[size] ?? 'w-7 h-7 text-xs'
+
+  if (avatarSrc) {
+    return (
+      <img
+        src={avatarSrc}
+        alt={username ?? 'User avatar'}
+        className={`${sizeCls} rounded-full object-cover ring-2 ring-white`}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={[
+        sizeCls,
+        'rounded-full flex items-center justify-center shrink-0',
+        'bg-primary-600 text-white font-bold leading-none select-none',
+      ].join(' ')}
+      aria-hidden="true"
+    >
+      {initials}
+    </div>
+  )
+}
+
+/**
  * Navbar — top navigation bar
  *
- * Unauthenticated: Login + Register CTAs
- * Authenticated:   Dashboard + Applications nav links, user chip, logout
+ * Unauthenticated: Sign in + Get started CTAs
+ * Authenticated:   Dashboard + Applications nav, user avatar dropdown
+ *   Dropdown: Profile · Edit Profile · Sign out
  */
 export default function Navbar() {
-  const { isAuthenticated, isLoading, user, logout } = useAuth()
-  const navigate  = useNavigate()
-  const location  = useLocation()
+  const { isAuthenticated, isLoading, user, avatar, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = (e) => {
+      if (!dropdownRef.current?.contains(e.target)) setDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [dropdownOpen])
+
+  // Close dropdown on route change
+  useEffect(() => { setDropdownOpen(false) }, [location.pathname])
 
   const handleLogout = () => {
+    setDropdownOpen(false)
     logout()
     navigate('/login', { replace: true })
   }
@@ -25,7 +87,7 @@ export default function Navbar() {
       <Link
         to={to}
         className={[
-          'hidden sm:flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-md transition-colors',
+          'hidden sm:flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-lg transition-all duration-150',
           active
             ? 'text-primary-700 bg-primary-50 font-medium'
             : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100',
@@ -38,21 +100,21 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 h-14 bg-white/90 backdrop-blur-sm border-b border-neutral-200 flex items-center px-4 sm:px-6 gap-4 shadow-xs">
-      {/* Brand */}
+    <header className="sticky top-0 z-40 h-14 bg-white/95 backdrop-blur-sm border-b border-neutral-200 flex items-center px-4 sm:px-6 gap-3 shadow-sm">
+      {/* ── Brand ── */}
       <Link
         to={isAuthenticated ? '/dashboard' : '/'}
         className="flex items-center gap-2.5 shrink-0 group"
       >
-        <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center transition-transform group-hover:scale-105">
+        <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center transition-transform duration-150 group-hover:scale-105">
           <Briefcase className="text-white" size={14} strokeWidth={2.5} />
         </div>
-        <span className="text-sm font-bold text-neutral-900 tracking-tight hidden xs:block">
+        <span className="text-sm font-bold text-neutral-900 tracking-tight hidden sm:block">
           Job Tracker Pro
         </span>
       </Link>
 
-      {/* Centre nav links (authenticated) */}
+      {/* ── Centre nav links ── */}
       {!isLoading && isAuthenticated && (
         <nav className="flex items-center gap-1 ml-2">
           {navLink('/dashboard',    'Dashboard',    LayoutDashboard)}
@@ -60,38 +122,87 @@ export default function Navbar() {
         </nav>
       )}
 
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right-side controls */}
+      {/* ── Right-side controls ── */}
       {!isLoading && (
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
-            <>
-              {/* User avatar chip */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-100 border border-neutral-200">
-                <div className="w-5 h-5 rounded-full bg-primary-600 flex items-center justify-center shrink-0">
-                  <span className="text-white text-xs font-bold leading-none">
-                    {(user?.username?.[0] ?? 'U').toUpperCase()}
-                  </span>
-                </div>
-                <span className="text-sm font-medium text-neutral-700 hidden sm:block max-w-[120px] truncate">
-                  {user?.username ?? 'User'}
-                </span>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                leftIcon={<LogOut size={14} />}
-                onClick={handleLogout}
-                className="text-neutral-600 hover:text-rose-600 hover:bg-rose-50"
-                id="navbar-logout-btn"
+            /* ── User dropdown ── */
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={dropdownOpen}
+                aria-label="Open user menu"
+                className={[
+                  'flex items-center gap-2 px-2.5 py-1.5 rounded-lg',
+                  'border transition-all duration-150',
+                  dropdownOpen
+                    ? 'bg-neutral-100 border-neutral-300'
+                    : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100 hover:border-neutral-300',
+                ].join(' ')}
               >
-                <span className="hidden sm:inline">Sign out</span>
-              </Button>
-            </>
+                <InitialsAvatar username={user?.username} avatarSrc={avatar} size="xs" />
+                <span className="text-sm font-medium text-neutral-700 hidden sm:block max-w-[120px] truncate">
+                  {user?.username}
+                </span>
+                <svg
+                  className={`text-neutral-400 transition-transform duration-150 ${dropdownOpen ? 'rotate-180' : ''}`}
+                  width="12" height="12" viewBox="0 0 12 12" fill="none"
+                  aria-hidden="true"
+                >
+                  <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {/* Dropdown panel */}
+              {dropdownOpen && (
+                <div
+                  role="menu"
+                  className={[
+                    'absolute right-0 top-full mt-2 w-52',
+                    'bg-white border border-neutral-200 rounded-xl shadow-lg',
+                    'py-1.5 overflow-hidden',
+                    'animate-in fade-in slide-in-from-top-1 duration-150',
+                  ].join(' ')}
+                >
+                  {/* User info header */}
+                  <div className="px-3.5 py-2.5 border-b border-neutral-100 mb-1">
+                    <p className="text-xs font-semibold text-neutral-900 truncate">
+                      {user?.username}
+                    </p>
+                    {user?.email && (
+                      <p className="text-xs text-neutral-400 truncate mt-0.5">
+                        {user.email}
+                      </p>
+                    )}
+                  </div>
+
+                  <DropdownItem
+                    icon={<UserCircle size={14} />}
+                    label="Profile"
+                    onClick={() => { setDropdownOpen(false); navigate('/profile') }}
+                  />
+                  <DropdownItem
+                    icon={<UserCog size={14} />}
+                    label="Edit Profile"
+                    onClick={() => { setDropdownOpen(false); navigate('/profile?edit=true') }}
+                  />
+
+                  <div className="my-1.5 border-t border-neutral-100" />
+
+                  <DropdownItem
+                    icon={<LogOut size={14} />}
+                    label="Sign out"
+                    onClick={handleLogout}
+                    danger
+                  />
+                </div>
+              )}
+            </div>
           ) : (
+            /* ── Unauthenticated ── */
             <>
               <Button
                 variant="ghost"
@@ -116,5 +227,24 @@ export default function Navbar() {
         </div>
       )}
     </header>
+  )
+}
+
+function DropdownItem({ icon, label, onClick, danger = false }) {
+  return (
+    <button
+      role="menuitem"
+      onClick={onClick}
+      className={[
+        'w-full flex items-center gap-2.5 px-3.5 py-2 text-sm',
+        'transition-colors duration-100 text-left',
+        danger
+          ? 'text-rose-600 hover:bg-rose-50'
+          : 'text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900',
+      ].join(' ')}
+    >
+      <span className="shrink-0 opacity-70">{icon}</span>
+      {label}
+    </button>
   )
 }

@@ -5,6 +5,7 @@ import LoginPage            from '@/pages/LoginPage'
 import RegisterPage         from '@/pages/RegisterPage'
 import DashboardPage        from '@/pages/DashboardPage'
 import ApplicationsListPage from '@/pages/ApplicationsListPage'
+import ProfilePage          from '@/pages/ProfilePage'
 
 /**
  * AppRoutes — React Router v6 route tree
@@ -30,6 +31,7 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard"    element={<DashboardPage />} />
         <Route path="/applications" element={<ApplicationsListPage />} />
+        <Route path="/profile"      element={<ProfilePage />} />
       </Route>
 
       {/* ── Redirects ──────────────────────────────────────────── */}

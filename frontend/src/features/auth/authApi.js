@@ -26,6 +26,12 @@ export async function refreshToken(refresh) {
   return data // { access }
 }
 
+/** GET /api/profile/ → returns { id, username, email } for the logged-in user */
+export async function getProfile() {
+  const { data } = await apiClient.get('/profile/')
+  return data // { id, username, email }
+}
+
 /**
  * logout — client-side only for now.
  * If the backend exposes a token-blacklist endpoint in a later stage,
